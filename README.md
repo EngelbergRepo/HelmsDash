@@ -1,3 +1,5 @@
+editor : http://localhost:5173/?editor=formations    
+
 # HelmsDash
 
 A medieval endless runner built with Three.js — sprint through cobblestone streets as a knight, dodge mine-carts, and collect gold coins.

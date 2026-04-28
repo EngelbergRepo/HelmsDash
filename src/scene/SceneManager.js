@@ -121,7 +121,6 @@ export class SceneManager {
     const lerp = Math.min(dt * 5, 1);
     this._cameraCurrentY += (this._cameraTargetY - this._cameraCurrentY) * lerp;
     this._lookCurrentY   += (this._lookTargetY   - this._lookCurrentY)   * lerp;
-
     // Camera shake
     const shakeX = this._shakeIntensity > 0 ? (Math.random() - 0.5) * this._shakeIntensity * 0.3 : 0;
     const shakeY = this._shakeIntensity > 0 ? (Math.random() - 0.5) * this._shakeIntensity * 0.2 : 0;

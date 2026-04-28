@@ -5,6 +5,14 @@ import { HomePage } from './ui/HomePage.js';
 
 async function bootstrap() {
   const app = document.getElementById('app');
+  const params = new URLSearchParams(window.location.search);
+
+  // Editor routes — boot before the game engine so nothing covers the UI
+  if (params.get('editor') === 'formations') {
+    const { FormationEditor } = await import('./editors/FormationEditor.js');
+    new FormationEditor(app);
+    return;
+  }
 
   // Create canvas
   const canvas = document.createElement('canvas');
@@ -27,13 +35,10 @@ async function bootstrap() {
   // Listen for game requesting menu
   window.addEventListener('helmsdash:showMenu', showHomePage);
 
-  // Check for ChunkLibraryEditor mode
-  const params = new URLSearchParams(window.location.search);
   if (params.get('editor') === 'chunks') {
-    // Load editor lazily
     const { ChunkLibraryEditor } = await import('./editors/ChunkLibraryEditor.js');
     new ChunkLibraryEditor(app, game.sceneManager.scene);
-    return; // Don't show homepage in editor mode
+    return;
   }
 
   // Show homepage on startup

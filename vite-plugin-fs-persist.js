@@ -7,6 +7,7 @@ const ALLOWED_PATHS = [
   'assets/data/asset_overrides.json',
   'assets/data/lighting_preset.json',
   'assets/data/shader_overrides.json',
+  'assets/data/obstacle_formations.json',
   // Chunk preset files authored by the Three.js Editor:
   /^assets\/chunks\/chunk_[\w-]+\.json$/,
 ];

@@ -12,6 +12,7 @@ import { AudioManager }    from './AudioManager.js';
 import { ShaderManager }   from './ShaderManager.js';
 import { SaveManager }     from './SaveManager.js';
 import { initAssetRegistry } from './AssetRegistry.js';
+import { setTurnBend } from './worldBend.js';
 import { HUD }      from '../ui/HUD.js';
 import { PauseMenu } from '../ui/PauseMenu.js';
 import { GameOver }  from '../ui/GameOver.js';
@@ -71,6 +72,12 @@ export class Game {
     this._rafId = null;
     this._lastTime = 0;
 
+    // Turn bend state machine
+    this._turnPhase  = 'waiting'; // 'waiting' | 'in' | 'hold' | 'out'
+    this._turnTimer  = CONFIG.TURN_FREQUENCY;
+    this._turnDir    = 1;         // +1 = right, -1 = left
+    this._turnBend   = 0;         // current bend value driven toward target
+
     // Window resize handled by SceneManager
     window.addEventListener('resize', () => {});
   }
@@ -115,6 +122,9 @@ export class Game {
     );
     this._pauseMenu.hide();
 
+    // Inject coin shader before init so the initial chunks use it
+    setCoinMaterial(this._shaderMgr.coinMaterial);
+
     await this._trackGen.init();
     this._environment.init();
 
@@ -122,6 +132,12 @@ export class Game {
     this._speed        = CONFIG.PACE_SPEED;
     this._elapsed      = 0;
     this._nextPowerupIn = this._randomPowerupInterval();
+
+    // Reset turn bend
+    this._turnPhase = 'waiting';
+    this._turnTimer = CONFIG.TURN_FREQUENCY;
+    this._turnBend  = 0;
+    setTurnBend(0);
 
     // Wire player input
     // Lane-switch is blocked when a carriage body occupies the target lane at player's Z
@@ -142,9 +158,6 @@ export class Game {
     });
     this._inputManager.on('jump',      this._boundJump  = () => this._player?.jump());
     this._inputManager.on('roll',      this._boundRoll  = () => this._player?.roll());
-
-    // Inject coin shader into track generator so all future coins use it
-    setCoinMaterial(this._shaderMgr.coinMaterial);
 
     // Play gameplay music
     // this.audioManager.playMusic('gameplay', '/assets/audio/music/gameplay_track.mp3');
@@ -258,6 +271,7 @@ export class Game {
     }
 
     // Camera follow player X, world Z=0 (player stays at z=0, world moves)
+    this._updateTurnBend(dt);
     this.sceneManager.updateCamera(player.group.position.x, 0, dt);
 
     // Collision detection
@@ -428,12 +442,11 @@ export class Game {
       const dist = player.group.position.distanceTo(coinPos);
 
       if (hasMagnet && dist < magnetRadius) {
-        // Animate coin toward player
         const dir = player.group.position.clone().sub(coinPos).normalize();
-        coin.position.addScaledVector(dir, Math.min(dist, 8 * dt));
+        coin.position.addScaledVector(dir, Math.min(dist, CONFIG.MAGNET_PULL_SPEED * dt));
       }
 
-      if (dist < 1.2) {
+      if (dist < CONFIG.COIN_COLLECT_RADIUS) {
         coin.userData.collected = true;
         coin.visible = false;
         const value = CONFIG.COIN_VALUE * (hasDoubler ? 2 : 1);
@@ -496,5 +509,45 @@ export class Game {
   _randomPowerupInterval() {
     const [min, max] = CONFIG.POWERUP_SPAWN_INTERVAL;
     return min + Math.random() * (max - min);
+  }
+
+  _updateTurnBend(dt) {
+    const { TURN_STRENGTH, TURN_FREQUENCY, TURN_HOLD_DURATION, TURN_TRANSITION_TIME } = CONFIG;
+    const rate = TURN_STRENGTH / TURN_TRANSITION_TIME; // bend units per second
+
+    switch (this._turnPhase) {
+      case 'waiting':
+        this._turnTimer -= dt;
+        if (this._turnTimer <= 0) {
+          this._turnDir   = Math.random() < 0.5 ? 1 : -1;
+          this._turnPhase = 'in';
+        }
+        break;
+
+      case 'in':
+        this._turnBend += this._turnDir * rate * dt;
+        if (Math.abs(this._turnBend) >= TURN_STRENGTH) {
+          this._turnBend  = this._turnDir * TURN_STRENGTH;
+          this._turnTimer = TURN_HOLD_DURATION;
+          this._turnPhase = 'hold';
+        }
+        break;
+
+      case 'hold':
+        this._turnTimer -= dt;
+        if (this._turnTimer <= 0) this._turnPhase = 'out';
+        break;
+
+      case 'out':
+        this._turnBend -= this._turnDir * rate * dt;
+        if (Math.abs(this._turnBend) <= 0.000001) {
+          this._turnBend  = 0;
+          this._turnTimer = TURN_FREQUENCY * (0.7 + Math.random() * 0.6); // vary interval
+          this._turnPhase = 'waiting';
+        }
+        break;
+    }
+
+    setTurnBend(this._turnBend);
   }
 }

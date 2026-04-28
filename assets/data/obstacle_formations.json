@@ -1,0 +1,38 @@
+[
+  {
+    "id": "up_train",
+    "difficulty": [
+      "easy",
+      "medium",
+      "hard"
+    ],
+    "spawnWeight": 1,
+    "slots": [
+      {
+        "lane0": "wagon",
+        "lane1": null,
+        "lane2": "wagon"
+      },
+      {
+        "lane0": null,
+        "lane1": "ramp",
+        "lane2": null
+      },
+      {
+        "lane0": null,
+        "lane1": "wagon",
+        "lane2": null
+      },
+      {
+        "lane0": null,
+        "lane1": null,
+        "lane2": null
+      },
+      {
+        "lane0": null,
+        "lane1": null,
+        "lane2": null
+      }
+    ]
+  }
+]

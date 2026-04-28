@@ -2,12 +2,14 @@
 import * as THREE from 'three';
 import { Collectible } from '../entities/Collectible.js';
 import { CONFIG } from '../config.js';
+import { applyWorldBend } from '../core/worldBend.js';
 
 const COIN_ALT  = 5.5;   // Y height of jetpack coins
 const COIN_MAT  = new THREE.MeshStandardMaterial({
   color: 0xffd700, emissive: 0xffaa00, emissiveIntensity: 0.9,
   roughness: 0.1, metalness: 1.0,
 });
+applyWorldBend(COIN_MAT);
 const COIN_GEO  = new THREE.CylinderGeometry(0.38, 0.38, 0.09, 14);
 
 function spawnJetpackCoins(scene, playerX, playerZ) {

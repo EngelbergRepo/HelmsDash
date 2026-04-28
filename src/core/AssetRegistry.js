@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { loadFromFile } from './persist.js';
+import { applyWorldBend } from './worldBend.js';
 
 // ──────────────────────────────────────────────────────────────
 // Placeholder factory functions
@@ -285,6 +286,18 @@ function buildBanner() {
   return group;
 }
 
+function buildFlatChunk() {
+  const mesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(9, 30),
+    new THREE.MeshStandardMaterial({ color: 0x8a7a6a, roughness: 0.95 })
+  );
+  mesh.rotation.x = -Math.PI / 2;
+  const group = new THREE.Group();
+  group.add(mesh);
+  group.name = 'flat_chunk';
+  return group;
+}
+
 // ──────────────────────────────────────────────────────────────
 // Registry — meshes
 // ──────────────────────────────────────────────────────────────
@@ -306,6 +319,9 @@ export const REGISTRY = {
   'environment/building_a':    { placeholder: buildBuildingA,   glbPath: 'assets/models/environment/building_a.glb' },
   'environment/building_b':    { placeholder: buildBuildingB,   glbPath: 'assets/models/environment/building_b.glb' },
   'environment/banner':        { placeholder: buildBanner,      glbPath: 'assets/models/environment/banner.glb' },
+  'track/turn_left':           { placeholder: buildFlatChunk,   glbPath: 'assets/models/track/turn_left.glb' },
+  'track/turn_right':          { placeholder: buildFlatChunk,   glbPath: 'assets/models/track/turn_right.glb' },
+  'track/chunk':               { placeholder: buildFlatChunk,   glbPath: 'assets/models/obstacles/track.glb' },
 };
 
 // ──────────────────────────────────────────────────────────────
@@ -323,7 +339,7 @@ export const ANIMATION_REGISTRY = {
   run:          'assets/models/player/knight_run.glb',
   sprint:       'assets/models/player/knight_sprint.glb',
   // jump_up:   'assets/models/player/knight_jump.glb',
-  // roll:      'assets/models/player/knight_roll.glb',
+  roll:      'assets/models/player/knight_roll.glb',
   hurt:      'assets/models/player/knight_hurt.glb',
   // land:      'assets/models/player/knight_land.glb',
   jetpack_hover: 'assets/models/player/knight_jetpack.glb',
@@ -364,6 +380,10 @@ export async function initAssetRegistry() {
       _gltfLoader.load(url,
         gltf => {
           _glbCache.set(path, gltf.scene);
+          // Apply world-bend shader to all materials in this GLB
+          gltf.scene.traverse(child => {
+            if (child.isMesh) [].concat(child.material).forEach(applyWorldBend);
+          });
           const size = new THREE.Vector3();
           new THREE.Box3().setFromObject(gltf.scene).getSize(size);
           console.info(`[AssetRegistry] ✓ mesh  ${path}  ${size.x.toFixed(2)}×${size.y.toFixed(2)}×${size.z.toFixed(2)} m`);
@@ -466,8 +486,11 @@ export function getAsset(key) {
     return skinned ? SkeletonUtils.clone(cached) : cached.clone();
   }
 
-  // Return placeholder immediately, swap in GLB async if available
+  // Return placeholder — apply world bend to its materials
   const placeholder = entry.placeholder();
+  placeholder.traverse(child => {
+    if (child.isMesh) [].concat(child.material).forEach(applyWorldBend);
+  });
 
   if (glbPath) {
     _gltfLoader.load(glbPath, (gltf) => {

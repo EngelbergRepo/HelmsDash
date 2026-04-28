@@ -2,6 +2,8 @@
 // Loads GLSL shaders and creates ShaderMaterials for coins, fog, buff glow, jetpack trail
 
 import * as THREE from 'three';
+import { BEND_UNIFORMS } from './worldBend.js';
+import { CONFIG } from '../config.js';
 
 // Inline GLSL strings — allows Vite to bundle without raw plugin
 const SHADERS = {
@@ -9,7 +11,10 @@ const SHADERS = {
     vert: `
       varying vec2 vUv;
       varying vec3 vNormal;
+      varying float vWorldZ;
       uniform float uTime;
+      uniform float uCurveStrength;
+      uniform float uTurnBend;
       void main() {
         vUv = uv; vNormal = normalize(normalMatrix * normal);
         float angle = uTime * 2.5;
@@ -18,17 +23,26 @@ const SHADERS = {
         float x = cosA*pos.x - sinA*pos.z;
         float z = sinA*pos.x + cosA*pos.z;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(x, pos.y, z, 1.0);
+        vec4 _wPos = modelMatrix * vec4(x, pos.y, z, 1.0);
+        vWorldZ = _wPos.z;
+        gl_Position.y -= uCurveStrength * _wPos.z * _wPos.z * gl_Position.w;
+        gl_Position.x += uTurnBend      * _wPos.z * _wPos.z * gl_Position.w;
       }`,
     frag: `
       varying vec2 vUv; varying vec3 vNormal;
+      varying float vWorldZ;
       uniform float uTime;
+      uniform float uCoinFadeNear;
+      uniform float uCoinFadeFar;
       void main() {
         vec3 goldBase = vec3(1.0,0.82,0.1); vec3 goldShine = vec3(1.0,0.98,0.6);
         float rim = abs(dot(vNormal, vec3(0.0,0.0,1.0)));
         float shimmer = 0.5 + 0.5*sin(uTime*4.0 + vUv.x*10.0);
         vec3 col = mix(goldBase, goldShine, rim*0.6 + shimmer*0.2);
         float em = 0.25 + 0.15*shimmer;
-        gl_FragColor = vec4(col + col*em, 1.0);
+        float dist = -vWorldZ; // positive = distance ahead of player
+        float alpha = 1.0 - smoothstep(uCoinFadeNear, uCoinFadeFar, dist);
+        gl_FragColor = vec4(col + col*em, alpha);
       }`,
   },
   groundFog: {
@@ -104,7 +118,14 @@ export class ShaderManager {
       this._materials.coin = new THREE.ShaderMaterial({
         vertexShader: SHADERS.coin.vert,
         fragmentShader: SHADERS.coin.frag,
-        uniforms: { uTime: this.uTime },
+        uniforms: {
+          uTime:         this.uTime,
+          uCoinFadeNear: { value: CONFIG.COIN_FADE_NEAR },
+          uCoinFadeFar:  { value: CONFIG.COIN_FADE_FAR  },
+          ...BEND_UNIFORMS,
+        },
+        transparent: true,
+        depthWrite: false,
       });
     }
     return this._materials.coin;
@@ -140,7 +161,7 @@ export class ShaderManager {
   }
 
   createJetpackTrail(scene, playerGroup) {
-    const COUNT = 60;
+    const COUNT = 15;
     const positions = new Float32Array(COUNT * 3);
     const sizes     = new Float32Array(COUNT);
     const alphas    = new Float32Array(COUNT);

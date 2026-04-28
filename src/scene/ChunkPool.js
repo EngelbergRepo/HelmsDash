@@ -28,14 +28,19 @@ export class ChunkPool {
 
   /**
    * Return a chunk to the pool — removes all children and hides it.
+   * Disposes cloned materials to prevent GPU memory accumulation.
+   * Geometry is NOT disposed because getAsset clones share the same geometry buffer.
    */
   release(chunk) {
     const idx = this._active.indexOf(chunk);
     if (idx !== -1) this._active.splice(idx, 1);
 
-    // Dispose children
     while (chunk.children.length > 0) {
-      chunk.remove(chunk.children[0]);
+      const child = chunk.children[0];
+      child.traverse(obj => {
+        if (obj.isMesh) [].concat(obj.material).forEach(m => m.dispose());
+      });
+      chunk.remove(child);
     }
 
     chunk.visible = false;

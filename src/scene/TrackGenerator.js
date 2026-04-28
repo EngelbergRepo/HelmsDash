@@ -8,6 +8,7 @@ import { ChunkPool } from './ChunkPool.js';
 import { ChunkPresetLoader } from './ChunkPresetLoader.js';
 import { loadFromFile } from '../core/persist.js';
 import { getAsset } from '../core/AssetRegistry.js';
+import { applyWorldBend } from '../core/worldBend.js';
 
 // Materials (shared, created once)
 const MAT_COBBLE       = new THREE.MeshStandardMaterial({ color: 0x8a7a6a, roughness: 0.95, metalness: 0 });
@@ -46,6 +47,11 @@ const MAT_STEEL = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0
 
 const LANE_W = CONFIG.LANE_SPACING * 0.75; // cobblestone strip width per lane
 
+// Apply world-bend shader to all procedural materials
+[MAT_COBBLE, MAT_DIRT, MAT_TIE, MAT_RAIL, MAT_STEEL,
+ MAT_WAGON_BODY, MAT_WAGON_ROOF, MAT_WAGON_WHEEL, MAT_WAGON_METAL, MAT_WAGON_RAMP,
+].forEach(applyWorldBend);
+
 function buildGroundPlane() {
   const group = new THREE.Group();
   group.userData.role = 'ground';
@@ -79,7 +85,7 @@ function buildRailTies() {
   const group = new THREE.Group();
   const tieGeo  = new THREE.BoxGeometry(LANE_W + 0.2, 0.08, 0.32);
   const railGeo = new THREE.BoxGeometry(0.1, 0.1, CONFIG.TRACK_CHUNK_LENGTH);
-  const tieCount   = Math.floor(CONFIG.TRACK_CHUNK_LENGTH / 1.5);
+  const tieCount   = Math.floor(CONFIG.TRACK_CHUNK_LENGTH / CONFIG.RAIL_TIE_SPACING);
   const railOffset = LANE_W * 0.34; // distance from lane centre to each steel rail
 
   for (let i = 0; i < CONFIG.LANE_COUNT; i++) {
@@ -88,7 +94,7 @@ function buildRailTies() {
     // Cross-ties (sleepers)
     for (let t = 0; t < tieCount; t++) {
       const tie = new THREE.Mesh(tieGeo, MAT_TIE);
-      tie.position.set(cx, 0.04, -t * 1.5);
+      tie.position.set(cx, 0.04, -t * CONFIG.RAIL_TIE_SPACING);
       tie.receiveShadow = true;
       group.add(tie);
     }
@@ -174,6 +180,28 @@ function spawnPowerup(group, lane, z) {
   group.add(group2);
 }
 
+// ── Standalone ramp ───────────────────────────────────────────
+function buildRamp(lane) {
+  const group    = new THREE.Group();
+  const W        = CONFIG.LANE_SPACING * 0.85;
+  const H        = CONFIG.CARRIAGE_WAGON_HEIGHT;
+  const RL       = CONFIG.CARRIAGE_RAMP_LENGTH;  // 6 m = 1 slot
+  const rampW    = W * CONFIG.CARRIAGE_RAMP_WIDTH_FACTOR;
+  const slopeLen = Math.sqrt(H * H + RL * RL);
+
+  const visual = new THREE.Mesh(
+    new THREE.BoxGeometry(rampW, CONFIG.CARRIAGE_RAMP_THICKNESS, slopeLen),
+    MAT_WAGON_RAMP
+  );
+  // Tilt: bottom at z=0 (slot front), top at z=-RL (slot back), rising to height H
+  visual.rotation.x = Math.atan2(H, RL);
+  visual.position.set(0, H / 2, -RL / 2);  // centred in the 6 m slot
+  visual.castShadow = true;
+  group.add(visual);
+  group.position.x = laneX(lane);
+  return group;
+}
+
 // ── Obstacle builders (delegate to AssetRegistry) ─────────────
 function buildObstacle(type) {
   const mesh = getAsset(`obstacles/${type}`);
@@ -190,7 +218,7 @@ function buildObstacle(type) {
 // hasRamp is only ever true on the FIRST wagon; all others are plain solid wagons.
 // The ramp is a SEPARATE piece leaning against the FRONT (+z side) of the wagon body.
 // The wagon body always has full length L; the ramp extends RL metres in front of it.
-function _buildWagon(wg, W, H, L, hasRamp) {
+function _buildWagon(wg, W, H, L, hasRamp, skipRampVisual = false) {
   const ROOF_H = 0.18;
   const wheelR = H * 0.25;
   const platY  = H + ROOF_H;   // surface the player stands on
@@ -203,21 +231,23 @@ function _buildWagon(wg, W, H, L, hasRamp) {
   wg.add(body);
 
   if (hasRamp) {
-    // Ramp leans against the front face of the wagon (at local z = 0), extending to z = +RL
-    const RL        = CONFIG.CARRIAGE_RAMP_LENGTH;
-    const rampW     = W * CONFIG.CARRIAGE_RAMP_WIDTH_FACTOR;
-    const slopeLen  = Math.sqrt(H * H + RL * RL);
-    const rampVisual = new THREE.Mesh(
-      new THREE.BoxGeometry(rampW, CONFIG.CARRIAGE_RAMP_THICKNESS, slopeLen),
-      MAT_WAGON_RAMP
-    );
-    // Tilt up from front (z=+RL, y=0) to back (z=0, y=H)
-    rampVisual.rotation.x = Math.atan2(H, RL);
-    rampVisual.position.set(0, H / 2, RL / 2);
-    rampVisual.castShadow = true;
-    wg.add(rampVisual);
+    const RL       = CONFIG.CARRIAGE_RAMP_LENGTH;
+    const rampW    = W * CONFIG.CARRIAGE_RAMP_WIDTH_FACTOR;
 
-    // Physics ramp trigger (invisible, axis-aligned, lane-scoped)
+    if (!skipRampVisual) {
+      // Visual ramp — omitted when a standalone 'ramp' slot in the preceding chunk already shows it.
+      const slopeLen   = Math.sqrt(H * H + RL * RL);
+      const rampVisual = new THREE.Mesh(
+        new THREE.BoxGeometry(rampW, CONFIG.CARRIAGE_RAMP_THICKNESS, slopeLen),
+        MAT_WAGON_RAMP
+      );
+      rampVisual.rotation.x = Math.atan2(H, RL);
+      rampVisual.position.set(0, H / 2, RL / 2);
+      rampVisual.castShadow = true;
+      wg.add(rampVisual);
+    }
+
+    // Physics ramp trigger — always present so the player is elevated correctly.
     const rampTrig = new THREE.Mesh(new THREE.BoxGeometry(W, H + 0.2, RL), INVIS);
     rampTrig.position.set(0, H / 2, RL / 2);
     rampTrig.userData.role       = 'ramp_trigger';
@@ -286,7 +316,8 @@ function _buildWagon(wg, W, H, L, hasRamp) {
 
 // lane: 0=left, 1=centre, 2=right — carriage occupies exactly that one lane.
 // Only the first wagon may have a ramp (CARRIAGE_RAMP_CHANCE); all others are solid walls.
-function buildCarriage(numWagons, lane) {
+// forceRamp: true/false to override the random ramp chance (null = use config probability)
+function buildCarriage(numWagons, lane, forceRamp = null, skipRampVisual = false) {
   const group = new THREE.Group();
   group.userData.isCarriage = true;
 
@@ -296,34 +327,46 @@ function buildCarriage(numWagons, lane) {
 
   group.position.x = laneX(lane);
 
-  const firstHasRamp = Math.random() < CONFIG.CARRIAGE_RAMP_CHANCE;
+  const firstHasRamp = forceRamp !== null ? forceRamp : Math.random() < CONFIG.CARRIAGE_RAMP_CHANCE;
 
   for (let i = 0; i < numWagons; i++) {
     const wg = new THREE.Group();
     wg.position.z = -(i * L);
-    _buildWagon(wg, W, H, L, i === 0 && firstHasRamp);
+    _buildWagon(wg, W, H, L, i === 0 && firstHasRamp, i === 0 && skipRampVisual);
     group.add(wg);
   }
 
   return group;
 }
 
+// ── Track ground builder — tiled GLB, 2 tiles per chunk per lane ─
+function buildTrackGround(group) {
+  const tileZ = CONFIG.TRACK_CHUNK_LENGTH / 2; // 3 m per tile
+  for (let i = 0; i < CONFIG.LANE_COUNT; i++) {
+    for (let t = 0; t < 2; t++) {
+      const tile = getAsset('track/chunk');
+      tile.rotation.x = -Math.PI / 2;
+      tile.position.set(laneX(i), 0, -t * tileZ);
+      group.add(tile);
+    }
+  }
+}
+
 // ── Procedural chunk generator ────────────────────────────────
-export function generateProceduralChunk(difficulty, lastObstacleLane = -1) {
+export function generateProceduralChunk(difficulty, lastObstacleLane = -1, skipObstacles = false) {
   const group = new THREE.Group();
   group.userData.isChunk = true;
 
-  group.add(buildGroundPlane());
-  group.add(buildRailTies());
+  buildTrackGround(group);
 
   const len = CONFIG.TRACK_CHUNK_LENGTH;
 
   // ── Carriage chunk (replaces normal obstacles) ─────────────
-  if (Math.random() < CONFIG.CARRIAGE_SPAWN_CHANCE) {
+  if (!skipObstacles && Math.random() < CONFIG.CARRIAGE_SPAWN_CHANCE) {
     const numWagons    = randomInt(CONFIG.CARRIAGE_MIN_WAGONS, CONFIG.CARRIAGE_MAX_WAGONS);
     const carriageLane = randomInt(0, CONFIG.LANE_COUNT - 1);
     const carriage     = buildCarriage(numWagons, carriageLane);
-    carriage.position.z = -2; // 2 m gap before first wagon
+    carriage.position.z = -2;
     group.add(carriage);
     return group;
   }
@@ -335,31 +378,23 @@ export function generateProceduralChunk(difficulty, lastObstacleLane = -1) {
   else if (coinPattern === 'zigzag') spawnCoinZigzag(group, -2, CONFIG.COINS_PER_CLUSTER + 3);
   else                          spawnCoinArc(group, coinLane, -2, CONFIG.COINS_PER_CLUSTER);
 
-  // Obstacles based on difficulty tier
-  const numObs = difficulty === 'easy' ? 1 : difficulty === 'medium' ? 2 : 3;
-  const obstacleTypes = CONFIG.OBSTACLE_TYPES;
-  let lastZ = 0;
-
-  for (let i = 0; i < numObs; i++) {
-    const zPos = -(randomInt(5, len - 5 - (numObs - i - 1) * 7));
-    if (Math.abs(zPos - lastZ) < CONFIG.OBSTACLE_MIN_GAP) continue;
-    lastZ = zPos;
-
-    // Avoid same lane as previous chunk's obstacle
+  if (!skipObstacles) {
+    // One obstacle per chunk — chunk is only 6 m so multiple placements always violate OBSTACLE_MIN_GAP.
     let lane;
     do { lane = randomInt(0, 2); } while (lane === lastObstacleLane && Math.random() > 0.3);
 
-    const type = pick(obstacleTypes);
-    const obs = buildObstacle(type);
+    const zPos = -(randomInt(2, len - 2));
+    const type = pick(CONFIG.OBSTACLE_TYPES);
+    const obs  = buildObstacle(type);
     obs.position.set(laneX(lane), 0, zPos);
     group.add(obs);
-  }
+    group.userData.lastObstacleLane = lane; // read back by TrackGenerator to update _lastObstacleLane
 
-  // Occasionally spawn a power-up (20% chance, never alongside a gate/full-width obstacle)
-  const hasGate = group.children.some(c => c.userData?.obstacleType === 'gate');
-  if (!hasGate && Math.random() < 0.20) {
-    const pwrLane = randomInt(0, 2);
-    spawnPowerup(group, pwrLane, -(randomInt(8, len - 8)));
+    // Occasionally spawn a power-up in a different lane
+    if (Math.random() < 0.20) {
+      const pwrLane = randomInt(0, 2);
+      spawnPowerup(group, pwrLane, -(randomInt(2, len - 2)));
+    }
   }
 
   return group;
@@ -374,6 +409,9 @@ export class TrackGenerator {
     this._presets = [];
     this._manifest = [];
     this._lastObstacleLane = -1;
+    this._lastChunkHadObstacle = false;
+    this._formations = [];
+    this._formationQueue = []; // pending formation slots to spawn next
   }
 
   async init() {
@@ -382,6 +420,9 @@ export class TrackGenerator {
       this._manifest = manifest;
       this._presets = await this._presetLoader.loadAll(manifest);
     }
+
+    const formations = await loadFromFile('assets/data/obstacle_formations.json');
+    if (Array.isArray(formations)) this._formations = formations;
 
     // Spawn initial pool of chunks starting at z=0
     let z = 0;
@@ -430,23 +471,118 @@ export class TrackGenerator {
   _spawnAt(z, speed = CONFIG.BASE_SPEED) {
     const difficulty = this._getDifficulty(speed);
     let chunkGroup;
+    let isObstacleChunk = false;
 
-    const usePreset = Math.random() > CONFIG.PROCEDURAL_CHUNK_WEIGHT && this._presets.length > 0;
-    if (usePreset) {
-      const candidate = this._pickPreset(difficulty);
-      // Only use preset if it has actual content (not the empty placeholder JSONs)
-      if (candidate && candidate.children.length > 0) {
-        chunkGroup = candidate;
+    if (this._formationQueue.length > 0) {
+      // Mid-formation: never insert a gap between formation slots.
+      // Mark obstacle only after the last slot so the gap falls after the formation.
+      chunkGroup = this._buildFormationSlot(this._formationQueue.shift());
+      isObstacleChunk = this._formationQueue.length === 0;
+    } else if (this._lastChunkHadObstacle) {
+      // Mandatory breathing room: coins only, no carriages, no obstacles.
+      chunkGroup = generateProceduralChunk(difficulty, this._lastObstacleLane, true);
+      isObstacleChunk = false;
+    } else {
+      // Normal spawn: maybe formation, preset, or procedural.
+      if (this._formations.length > 0 && Math.random() < CONFIG.FORMATION_SPAWN_CHANCE) {
+        const formation = this._pickFormation(difficulty);
+        if (formation?.slots?.length) {
+          for (let i = 1; i < formation.slots.length; i++) {
+            // Annotate each slot with which lanes had 'ramp' in the preceding slot,
+            // so wagons that follow a ramp skip the wall and get a trigger instead.
+            const prev = formation.slots[i - 1];
+            const prevRampLanes = new Set(
+              [0, 1, 2].filter(li => prev[`lane${li}`] === 'ramp')
+            );
+            this._formationQueue.push({ ...formation.slots[i], _prevRampLanes: prevRampLanes });
+          }
+          chunkGroup = this._buildFormationSlot(formation.slots[0]);
+          // Single-slot formation ends immediately; multi-slot gap is set when queue drains.
+          isObstacleChunk = this._formationQueue.length === 0;
+        }
+      }
+
+      if (!chunkGroup) {
+        const usePreset = Math.random() > CONFIG.PROCEDURAL_CHUNK_WEIGHT && this._presets.length > 0;
+        if (usePreset) {
+          const candidate = this._pickPreset(difficulty);
+          if (candidate?.children.length > 0) chunkGroup = candidate;
+        }
+        if (!chunkGroup) chunkGroup = generateProceduralChunk(difficulty, this._lastObstacleLane);
+        // Persist the lane used so the next obstacle chunk avoids it.
+        if (chunkGroup.userData.lastObstacleLane !== undefined)
+          this._lastObstacleLane = chunkGroup.userData.lastObstacleLane;
+        isObstacleChunk = true;
       }
     }
-    if (!chunkGroup) {
-      chunkGroup = generateProceduralChunk(difficulty, this._lastObstacleLane);
-    }
+
+    this._lastChunkHadObstacle = isObstacleChunk;
 
     const chunk = this._pool.acquire();
     chunk.add(chunkGroup);
     chunk.position.z = z;
     this._scene.add(chunk);
+  }
+
+  _pickFormation(difficulty) {
+    const candidates = this._formations.filter(f =>
+      Array.isArray(f.difficulty) && f.difficulty.includes(difficulty) && (f.spawnWeight ?? 1) > 0
+    );
+    if (!candidates.length) return null;
+    const total = candidates.reduce((s, f) => s + (f.spawnWeight ?? 1), 0);
+    let r = Math.random() * total;
+    for (const f of candidates) {
+      r -= f.spawnWeight ?? 1;
+      if (r <= 0) return f;
+    }
+    return candidates[0];
+  }
+
+  _buildFormationSlot(slot) {
+    const group = new THREE.Group();
+    group.userData.isChunk = true;
+    buildTrackGround(group);
+
+    const L  = CONFIG.CARRIAGE_WAGON_LENGTH;  // 4 m
+    const RL = CONFIG.CARRIAGE_RAMP_LENGTH;   // 4 m
+    const CL = CONFIG.TRACK_CHUNK_LENGTH;     // 6 m
+
+    // Default z for non-train obstacles: centred in the chunk
+    const obsZ = -CL / 2;
+
+    const lanes = [slot.lane0 ?? null, slot.lane1 ?? null, slot.lane2 ?? null];
+
+    for (let li = 0; li < 3; li++) {
+      const type = lanes[li];
+      if (!type) continue;
+
+      if (type === 'wagon') {
+        // Wagon front face flush with chunk start; body runs z=0…-12 across the next 2 chunks.
+        // If the preceding slot had a 'ramp' on this lane: use forceRamp=true (removes wall,
+        // adds ramp_trigger) but skip the visual (standalone ramp already provides it).
+        const hasExtRamp = slot._prevRampLanes?.has(li) ?? false;
+        const carriage = buildCarriage(1, li, hasExtRamp ? true : false, hasExtRamp);
+        carriage.position.z = 0;
+        group.add(carriage);
+      } else if (type === 'wagon_ramp') {
+        // Wagon with built-in ramp: forceRamp=true removes the front wall, adds ramp_trigger,
+        // and the ramp visual extends 6 m forward into the preceding chunk (same space as a
+        // standalone 'ramp' slot would occupy — no separate ramp slot needed).
+        const carriage = buildCarriage(1, li, true);
+        carriage.position.z = 0;
+        group.add(carriage);
+      } else if (type === 'ramp') {
+        // Visual-only standalone ramp (legacy / non-wagon contexts).
+        const ramp = buildRamp(li);
+        ramp.position.z = 0;
+        group.add(ramp);
+      } else {
+        const obs = buildObstacle(type);
+        obs.position.set(laneX(li), 0, obsZ);
+        group.add(obs);
+      }
+    }
+    return group;
   }
 
   update(dt, speed) {
@@ -541,5 +677,7 @@ export class TrackGenerator {
       this._scene.remove(chunk);
       this._pool.release(chunk);
     }
+    this._formationQueue = [];
+    this._lastChunkHadObstacle = false;
   }
 }
