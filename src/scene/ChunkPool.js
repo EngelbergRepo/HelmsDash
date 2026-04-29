@@ -35,6 +35,11 @@ export class ChunkPool {
     const idx = this._active.indexOf(chunk);
     if (idx !== -1) this._active.splice(idx, 1);
 
+    if (chunk.userData._onRelease) {
+      chunk.userData._onRelease();
+      delete chunk.userData._onRelease;
+    }
+
     while (chunk.children.length > 0) {
       const child = chunk.children[0];
       child.traverse(obj => {

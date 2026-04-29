@@ -9,6 +9,7 @@ import { ChunkPresetLoader } from './ChunkPresetLoader.js';
 import { loadFromFile } from '../core/persist.js';
 import { getAsset } from '../core/AssetRegistry.js';
 import { applyWorldBend } from '../core/worldBend.js';
+import { TrackInstancedRenderer } from './TrackInstancedRenderer.js';
 
 // Materials (shared, created once)
 const MAT_COBBLE       = new THREE.MeshStandardMaterial({ color: 0x8a7a6a, roughness: 0.95, metalness: 0 });
@@ -187,15 +188,8 @@ function buildRamp(lane) {
   const H        = CONFIG.CARRIAGE_WAGON_HEIGHT;
   const RL       = CONFIG.CARRIAGE_RAMP_LENGTH;  // 6 m = 1 slot
   const rampW    = W * CONFIG.CARRIAGE_RAMP_WIDTH_FACTOR;
-  const slopeLen = Math.sqrt(H * H + RL * RL);
-
-  const visual = new THREE.Mesh(
-    new THREE.BoxGeometry(rampW, CONFIG.CARRIAGE_RAMP_THICKNESS, slopeLen),
-    MAT_WAGON_RAMP
-  );
-  // Tilt: bottom at z=0 (slot front), top at z=-RL (slot back), rising to height H
-  visual.rotation.x = Math.atan2(H, RL);
-  visual.position.set(0, H / 2, -RL / 2);  // centred in the 6 m slot
+  const visual = getAsset('carriages/ramp');
+  visual.position.set(0, 0, -RL / 2);  // sits flat on ground, centred in the 6 m slot
   visual.castShadow = true;
   group.add(visual);
   group.position.x = laneX(lane);
@@ -224,10 +218,12 @@ function _buildWagon(wg, W, H, L, hasRamp, skipRampVisual = false) {
   const platY  = H + ROOF_H;   // surface the player stands on
   const INVIS  = new THREE.MeshBasicMaterial({ visible: false });
 
-  // ── Wagon body (always full length) ────────────────────────
-  const body = new THREE.Mesh(new THREE.BoxGeometry(W, H, L), MAT_WAGON_BODY);
-  body.position.set(0, H / 2, -L / 2);
-  body.castShadow = true;
+  // ── Wagon body + wheels (GLB) ───────────────────────────────
+  // GLB unit size: 1 m wide × 1.18 m tall × 2 m long — scale to match CONFIG dimensions.
+  const body = getAsset('carriages/wagon');
+  body.scale.set(W / 1.0, H / 1.18, L / 2.0);
+  body.position.set(0, 0, -L / 2);
+  body.traverse(c => { if (c.isMesh) c.castShadow = true; });
   wg.add(body);
 
   if (hasRamp) {
@@ -236,13 +232,8 @@ function _buildWagon(wg, W, H, L, hasRamp, skipRampVisual = false) {
 
     if (!skipRampVisual) {
       // Visual ramp — omitted when a standalone 'ramp' slot in the preceding chunk already shows it.
-      const slopeLen   = Math.sqrt(H * H + RL * RL);
-      const rampVisual = new THREE.Mesh(
-        new THREE.BoxGeometry(rampW, CONFIG.CARRIAGE_RAMP_THICKNESS, slopeLen),
-        MAT_WAGON_RAMP
-      );
-      rampVisual.rotation.x = Math.atan2(H, RL);
-      rampVisual.position.set(0, H / 2, RL / 2);
+      const rampVisual = getAsset('carriages/ramp');
+      rampVisual.position.set(0, 0, RL / 2);  // sits flat on ground in front of wagon
       rampVisual.castShadow = true;
       wg.add(rampVisual);
     }
@@ -266,12 +257,6 @@ function _buildWagon(wg, W, H, L, hasRamp, skipRampVisual = false) {
     wg.add(wall);
   }
 
-  // ── Roof — spans body only, not the ramp ───────────────────
-  const roof = new THREE.Mesh(new THREE.BoxGeometry(W + 0.3, ROOF_H, L + 0.1), MAT_WAGON_ROOF);
-  roof.position.set(0, H + ROOF_H / 2, -L / 2);
-  roof.castShadow = true;
-  wg.add(roof);
-
   // ── Platform trigger — lane-scoped, body length only ────────
   const platTrig = new THREE.Mesh(new THREE.BoxGeometry(W, 0.15, L), INVIS);
   platTrig.position.set(0, platY + 0.075, -L / 2);
@@ -280,22 +265,6 @@ function _buildWagon(wg, W, H, L, hasRamp, skipRampVisual = false) {
   platTrig.userData.halfZ     = L / 2;
   platTrig.userData.platformY = platY;
   wg.add(platTrig);
-
-  // ── Wheels — four per wagon, at front and back of body ──────
-  const wheelGeo = new THREE.CylinderGeometry(wheelR, wheelR, 0.24, 14);
-  for (const wz of [-0.5, -(L - 0.5)]) {
-    for (const wx of [-(W / 2 - 0.14), W / 2 - 0.14]) {
-      const wheel = new THREE.Mesh(wheelGeo, MAT_WAGON_WHEEL);
-      wheel.rotation.z = Math.PI / 2;
-      wheel.position.set(wx, wheelR, wz);
-      wheel.castShadow = true;
-      wg.add(wheel);
-    }
-    const axle = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, W - 0.28, 8), MAT_WAGON_METAL);
-    axle.rotation.z = Math.PI / 2;
-    axle.position.set(0, wheelR, wz);
-    wg.add(axle);
-  }
 
   // ── Coins on top of wagon body ─────────────────────────────
   const coinY = platY + CONFIG.COIN_FLOAT_HEIGHT;
@@ -339,17 +308,18 @@ function buildCarriage(numWagons, lane, forceRamp = null, skipRampVisual = false
   return group;
 }
 
-// ── Track ground builder — tiled GLB, 2 tiles per chunk per lane ─
-function buildTrackGround(group) {
+// ── Track ground builder — allocates instanced slots instead of cloning ─
+// Returns an array of slot indices that must be freed when the chunk is released.
+function buildTrackGround(chunkWorldZ, renderer) {
   const tileZ = CONFIG.TRACK_CHUNK_LENGTH / 2; // 3 m per tile
+  const indices = [];
   for (let i = 0; i < CONFIG.LANE_COUNT; i++) {
     for (let t = 0; t < 2; t++) {
-      const tile = getAsset('track/chunk');
-      tile.rotation.x = -Math.PI / 2;
-      tile.position.set(laneX(i), 0, -t * tileZ);
-      group.add(tile);
+      const idx = renderer.allocate(laneX(i), 0, chunkWorldZ - t * tileZ, -Math.PI / 2);
+      indices.push(idx);
     }
   }
+  return indices;
 }
 
 // ── Procedural chunk generator ────────────────────────────────
@@ -357,7 +327,6 @@ export function generateProceduralChunk(difficulty, lastObstacleLane = -1, skipO
   const group = new THREE.Group();
   group.userData.isChunk = true;
 
-  buildTrackGround(group);
 
   const len = CONFIG.TRACK_CHUNK_LENGTH;
 
@@ -412,6 +381,7 @@ export class TrackGenerator {
     this._lastChunkHadObstacle = false;
     this._formations = [];
     this._formationQueue = []; // pending formation slots to spawn next
+    this._trackRenderer = new TrackInstancedRenderer(scene);
   }
 
   async init() {
@@ -423,6 +393,8 @@ export class TrackGenerator {
 
     const formations = await loadFromFile('assets/data/obstacle_formations.json');
     if (Array.isArray(formations)) this._formations = formations;
+
+    this._trackRenderer.init();
 
     // Spawn initial pool of chunks starting at z=0
     let z = 0;
@@ -521,6 +493,12 @@ export class TrackGenerator {
     const chunk = this._pool.acquire();
     chunk.add(chunkGroup);
     chunk.position.z = z;
+
+    // Allocate instanced ground tiles at this chunk's world Z
+    const tileIndices = buildTrackGround(z, this._trackRenderer);
+    const renderer = this._trackRenderer;
+    chunk.userData._onRelease = () => tileIndices.forEach(i => renderer.free(i));
+
     this._scene.add(chunk);
   }
 
@@ -541,7 +519,6 @@ export class TrackGenerator {
   _buildFormationSlot(slot) {
     const group = new THREE.Group();
     group.userData.isChunk = true;
-    buildTrackGround(group);
 
     const L  = CONFIG.CARRIAGE_WAGON_LENGTH;  // 4 m
     const RL = CONFIG.CARRIAGE_RAMP_LENGTH;   // 4 m
@@ -589,6 +566,7 @@ export class TrackGenerator {
     // Scroll all active chunks toward the camera
     const dz = speed * dt;
     this._pool.scroll(dz);
+    this._trackRenderer.scroll(dz);
 
     // Despawn chunks that have passed the camera
     for (const chunk of [...this._pool.active]) {

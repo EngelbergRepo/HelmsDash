@@ -35,7 +35,11 @@ export function applyWorldBend(material) {
     shader.vertexShader = shader.vertexShader.replace(
       '#include <project_vertex>',
       `#include <project_vertex>
-      vec4 _wPos = modelMatrix * vec4(transformed, 1.0);
+      #ifdef USE_INSTANCING
+        vec4 _wPos = modelMatrix * instanceMatrix * vec4(transformed, 1.0);
+      #else
+        vec4 _wPos = modelMatrix * vec4(transformed, 1.0);
+      #endif
       gl_Position.y -= uCurveStrength * _wPos.z * _wPos.z * gl_Position.w;
       gl_Position.x += uTurnBend      * _wPos.z * _wPos.z * gl_Position.w;`
     );

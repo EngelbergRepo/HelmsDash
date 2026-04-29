@@ -127,3 +127,40 @@ HelmsDash/
 
   ---
   The animation mixer integration (AnimationMixer, clip loading from GLB) is not yet wired in Player.js — that's the main code work needed once the GLBs are ready.
+
+  ####################
+  ####################
+  ####################
+  ####################
+
+  REGARDING THE GRAPHICS .glb files
+  ---
+  Your options (ranked by impact)
+
+  1. Decimate the mesh in Blender (biggest win, ~5 min)
+
+  2. Use InstancedMesh instead of cloning (code change)
+
+  Instead of getAsset('track/chunk') cloning the full scene graph for each chunk, extract the
+  geometry/material once and use THREE.InstancedMesh. This collapses all N track chunks into a
+  single draw call. This is the biggest architectural win but requires refactoring TrackGenerator
+  and ChunkPool.
+------->>>>>>>>>>>
+------->>>>>>>>>>>
+
+  Instead of getAsset('track/chunk') cloning the full scene graph for each chunk, extract the
+  geometry/material once and use THREE.InstancedMesh. This collapses all N track chunks into a
+  single draw call. This is the biggest architectural win but requires refactoring TrackGenerator
+  and ChunkPool.
+  worldBend.js — shader now has #ifdef USE_INSTANCING branch so the world-Z used for the bend curve
+  is computed correctly per-instance (without this, all track tiles would bend as if they were at
+  Z=0).
+
+  TrackInstancedRenderer.js (new) — extracts geometry+material from one sample of the track GLB at
+  startup; creates one THREE.InstancedMesh per sub-mesh with 256 slots. allocate/free/scroll manage
+  slot lifecycles. All tiles = 1–N draw calls total (N = number of sub-meshes in the GLB) instead of   240+ draw calls.
+
+  TrackGenerator.js — buildTrackGround now just allocates 6 instanced slots and returns their
+  indices. _spawnAt attaches _onRelease to each chunk so slots are freed when the chunk is recycled.   update scrolls the renderer alongside the pool.
+
+  ChunkPool.js — calls _onRelease before clearing children in release().

@@ -286,6 +286,20 @@ function buildBanner() {
   return group;
 }
 
+function buildRamp() {
+  const group = new THREE.Group();
+  const ramp = new THREE.Mesh(
+    new THREE.BoxGeometry(2.0, 0.2, 3.0),
+    new THREE.MeshStandardMaterial({ color: 0x5c3a1e, roughness: 0.9 })
+  );
+  ramp.rotation.x = -Math.PI / 12;
+  ramp.position.y = 0.3;
+  ramp.castShadow = true;
+  group.add(ramp);
+  group.name = 'carriages/ramp';
+  return group;
+}
+
 function buildFlatChunk() {
   const mesh = new THREE.Mesh(
     new THREE.PlaneGeometry(9, 30),
@@ -309,12 +323,14 @@ export const REGISTRY = {
   'obstacles/cart':            { placeholder: buildCart,        glbPath: 'assets/models/obstacles/cart.glb' },
   'obstacles/barrel':          { placeholder: buildBarrel,      glbPath: 'assets/models/obstacles/barrel.glb' },
   'obstacles/gate':            { placeholder: buildGate,        glbPath: 'assets/models/obstacles/gate.glb' },
-  'obstacles/low_beam':        { placeholder: buildLowBeam,     glbPath: null },
+  'obstacles/low_beam':        { placeholder: buildLowBeam,     glbPath: 'assets/models/obstacles/low_beam.glb' },
   'collectibles/coin':         { placeholder: buildCoin,        glbPath: 'assets/models/collectibles/coin.glb' },
   'collectibles/magnet':       { placeholder: buildMagnet,      glbPath: 'assets/models/collectibles/magnet.glb' },
   'collectibles/doubler':      { placeholder: buildDoubler,     glbPath: 'assets/models/collectibles/doubler.glb' },
   'collectibles/jetpack':      { placeholder: buildJetpack,     glbPath: 'assets/models/collectibles/jetpack.glb' },
   'collectibles/sprint_shoes': { placeholder: buildSprintShoes, glbPath: 'assets/models/collectibles/sprint_shoes.glb' },
+  'carriages/wagon':           { placeholder: buildCart,        glbPath: 'assets/models/carriages/wagon.glb' },
+  'carriages/ramp':            { placeholder: buildRamp,        glbPath: 'assets/models/carriages/wagon_ramp.glb' },
   'environment/tree_oak':      { placeholder: buildTree,        glbPath: 'assets/models/environment/tree_oak.glb' },
   'environment/building_a':    { placeholder: buildBuildingA,   glbPath: 'assets/models/environment/building_a.glb' },
   'environment/building_b':    { placeholder: buildBuildingB,   glbPath: 'assets/models/environment/building_b.glb' },
