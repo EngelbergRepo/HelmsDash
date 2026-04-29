@@ -52,28 +52,16 @@ export class HUD {
       hud.querySelector('#btn-mute').textContent = muted ? '🔇 Muted' : '🔊 Sound';
     });
 
-    this._buildHearts(CONFIG.MAX_HP);
+    this._buildHearts();
   }
 
-  _buildHearts(max) {
-    this._hpEl.innerHTML = '';
-    for (let i = 0; i < max; i++) {
-      const h = document.createElement('span');
-      h.className = 'heart';
-      h.textContent = '❤️';
-      h.dataset.idx = i;
-      this._hpEl.appendChild(h);
-    }
+  _buildHearts() {
+    this._hpEl.innerHTML = '<span class="heart-icon">❤️</span><span class="heart-count"></span>';
   }
 
-  updateHP(current, max) {
-    const hearts = this._hpEl.querySelectorAll('.heart');
-    hearts.forEach((h, i) => {
-      h.classList.remove('empty', 'cracked');
-      if (i >= current) {
-        h.classList.add(i === current ? 'cracked' : 'empty');
-      }
-    });
+  updateHP(current) {
+    const el = this._hpEl.querySelector('.heart-count');
+    if (el) el.textContent = current;
   }
 
   updateXP(xp)    { this._xpEl.textContent = Math.floor(xp).toLocaleString(); }
