@@ -9,13 +9,48 @@ export const CONFIG = {
   FOG_NEAR: 40,
   FOG_FAR: 120,
 
+  // ── Pixel Art Rendering ──────────────────────────────────────
+  PIXEL_ART_ENABLED:        false,
+
+  // Virtual canvas size — lower = chunkier pixels
+  // 320×180  → very chunky (~NES feel)
+  // 426×240  → medium (GBA-ish)
+  // 640×360  → subtle, just removes AA
+  PIXEL_ART_WIDTH:          640*2, // 320
+  PIXEL_ART_HEIGHT:         360*2, // 180
+
+  // UV snapping: when true, geometry moves in whole-pixel steps only (authentic retro, can feel choppy)
+  PIXEL_ART_SNAP_UVS:       false,
+
+  // Color palette reduction: 0 = off, 4–32 = quantize to N shades per channel
+  PIXEL_ART_PALETTE_LEVELS: 0,
+
+  // Outline thickness in virtual pixels: 0 = off, 1–2 = cel-shaded edge
+  PIXEL_ART_OUTLINE_PX:     0,
+
+  // ── Pixel Art Color Grading ───────────────────────────────────
+  // Exposure lift to compensate for the linear render pass (1.0 = no change)
+  PIXEL_ART_EXPOSURE:       1.5,
+
+  // Saturation: 0 = greyscale, 1 = unchanged, 1.4 = punchy
+  PIXEL_ART_SATURATION:     1,
+
+  // Warm highlight tint (rgb 0–1): mixed into bright pixels
+  PIXEL_ART_HIGHLIGHT_TINT: [1.05, 0.92, 0.72],   // golden-orange
+
+  // Cool shadow tint (rgb 0–1): mixed into dark pixels
+  PIXEL_ART_SHADOW_TINT:    [0.62, 0.65, 0.85],   // lavender-blue
+
+  // Strength of the split-tone blend (0 = off, 0.25 = subtle, 0.5 = strong)
+  PIXEL_ART_TINT_STRENGTH:  0.22,
+
   // ── Track ─────────────────────────────────────────────────
   LANE_COUNT: 3,
   LANE_SPACING: 3.0,           // metres between lane centres
   TRACK_CHUNK_LENGTH: 6,       // metres per chunk (6 / 1.5 = 4 sleepers per chunk)
   RAIL_TIE_SPACING: 1.5,       // metres between sleepers
-  CHUNK_POOL_SIZE: 40,         // chunks alive at once — 20 × 6 m = 120 m, matches FOG_FAR
-  DESPAWN_Z: 80,               // must be well past CAMERA_BEHIND (6) so chunks fully clear the view
+  CHUNK_POOL_SIZE: 80,         // chunks alive at once — 20 × 6 m = 120 m, matches FOG_FAR
+  DESPAWN_Z: 200,               // must be well past CAMERA_BEHIND (6) so chunks fully clear the view
   SPAWN_Z: -150,
 
   // ── Speed ─────────────────────────────────────────────────
@@ -95,9 +130,11 @@ export const CONFIG = {
   OBSTACLE_MIN_GAP: 5,        // metres between obstacles
 
   // ── Environment ───────────────────────────────────────────
-  SIDE_OBJECT_DENSITY: 0.4,   // objects per metre on each side
+  SIDE_OBJECT_DENSITY: 0.5,   // objects per metre on each side
   BUILDING_TYPES: ['building_a', 'building_b', 'alley'],
-  TREE_FREQUENCY: 0.3,
+  TREE_FREQUENCY: 0.5,
+  GROUND_PLANE_WIDTH: 100,     // metres — width of ground.png plane; increase to push side assets further apart
+  SIDE_SCENE_GAP: 0,       // metres between the track edge and the nearest side asset (trees, buildings)
 
   // ── Audio ─────────────────────────────────────────────────
   MUSIC_VOLUME: 0.4,

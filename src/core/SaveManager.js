@@ -35,6 +35,14 @@ export class SaveManager {
     return total;
   }
 
+  static setTheme(theme) {
+    localStorage.setItem(PREFIX + 'theme', theme);
+  }
+
+  static getTheme() {
+    return localStorage.getItem(PREFIX + 'theme') || 'normal';
+  }
+
   static clear() {
     Object.keys(localStorage)
       .filter(k => k.startsWith(PREFIX))

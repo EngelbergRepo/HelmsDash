@@ -24,12 +24,17 @@ export class SceneManager {
     const renderer = this.renderer;
 
     // Renderer settings
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.1;
+
+    // Pixel art: low-res render target + fullscreen blit quad
+    this._pixelTarget = null;
+    this._quadScene   = null;
+    this._quadCamera  = null;
+    if (CONFIG.PIXEL_ART_ENABLED) this._buildPixelTarget();
 
     // Sky colour
     scene.background = new THREE.Color(0xc8b89a);
@@ -114,6 +119,108 @@ export class SceneManager {
     this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(window.innerWidth, window.innerHeight);
+    if (CONFIG.PIXEL_ART_ENABLED) this._buildPixelTarget();
+  }
+
+  _buildPixelTarget() {
+    if (this._pixelTarget) this._pixelTarget.dispose();
+
+    const pw = CONFIG.PIXEL_ART_WIDTH;
+    const ph = CONFIG.PIXEL_ART_HEIGHT;
+
+    const depthTex = new THREE.DepthTexture(pw, ph);
+    depthTex.minFilter = THREE.NearestFilter;
+    depthTex.magFilter = THREE.NearestFilter;
+
+    this._pixelTarget = new THREE.WebGLRenderTarget(pw, ph, {
+      minFilter: THREE.NearestFilter,
+      magFilter: THREE.NearestFilter,
+      depthBuffer: true,
+      stencilBuffer: false,
+      depthTexture: depthTex,
+    });
+
+    this._quadCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+    // Blit shader: exposure, saturation, split-tone, palette reduction, outline
+    const blitMat = new THREE.ShaderMaterial({
+      depthTest: false,
+      depthWrite: false,
+      uniforms: {
+        uColor:          { value: this._pixelTarget.texture },
+        uDepth:          { value: depthTex },
+        uResolution:     { value: new THREE.Vector2(pw, ph) },
+        uPaletteLevels:  { value: CONFIG.PIXEL_ART_PALETTE_LEVELS },
+        uOutlinePx:      { value: CONFIG.PIXEL_ART_OUTLINE_PX },
+        uExposure:       { value: CONFIG.PIXEL_ART_EXPOSURE },
+        uSaturation:     { value: CONFIG.PIXEL_ART_SATURATION },
+        uHighlightTint:  { value: new THREE.Vector3(...CONFIG.PIXEL_ART_HIGHLIGHT_TINT) },
+        uShadowTint:     { value: new THREE.Vector3(...CONFIG.PIXEL_ART_SHADOW_TINT) },
+        uTintStrength:   { value: CONFIG.PIXEL_ART_TINT_STRENGTH },
+      },
+      vertexShader: /* glsl */`
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = vec4(position.xy, 0.0, 1.0);
+        }
+      `,
+      fragmentShader: /* glsl */`
+        uniform sampler2D uColor;
+        uniform sampler2D uDepth;
+        uniform vec2      uResolution;
+        uniform float     uPaletteLevels;
+        uniform float     uOutlinePx;
+        uniform float     uExposure;
+        uniform float     uSaturation;
+        uniform vec3      uHighlightTint;
+        uniform vec3      uShadowTint;
+        uniform float     uTintStrength;
+        varying vec2 vUv;
+
+        void main() {
+          vec3 col = texture2D(uColor, vUv).rgb;
+
+          // ── Exposure ───────────────────────────────────────────
+          col *= uExposure;
+
+          // ── Saturation ─────────────────────────────────────────
+          float luma = dot(col, vec3(0.2126, 0.7152, 0.0722));
+          col = mix(vec3(luma), col, uSaturation);
+
+          // ── Split-tone: warm highlights / cool shadows ─────────
+          float brightness = clamp(luma, 0.0, 1.0);
+          vec3 tint = mix(uShadowTint, uHighlightTint, brightness);
+          col = mix(col, col * tint, uTintStrength);
+
+          // ── Palette reduction ──────────────────────────────────
+          if (uPaletteLevels > 1.0) {
+            col = floor(col * uPaletteLevels) / (uPaletteLevels - 1.0);
+          }
+
+          // ── Depth-based outline ────────────────────────────────
+          if (uOutlinePx > 0.0) {
+            vec2 texel = uOutlinePx / uResolution;
+            float dN = texture2D(uDepth, vUv + vec2( 0.0,  texel.y)).r;
+            float dS = texture2D(uDepth, vUv + vec2( 0.0, -texel.y)).r;
+            float dE = texture2D(uDepth, vUv + vec2( texel.x,  0.0)).r;
+            float dW = texture2D(uDepth, vUv + vec2(-texel.x,  0.0)).r;
+            float diff = abs(dN - dS) + abs(dE - dW);
+            float edge = step(0.002, diff);
+            col = mix(col, vec3(0.0), edge * 0.85);
+          }
+
+          gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
+        }
+      `,
+    });
+    // Texture filters already set on the render target, but set on the
+    // sampler too so the shader sees nearest-neighbor sampling.
+    blitMat.uniforms.uColor.value.minFilter = THREE.NearestFilter;
+    blitMat.uniforms.uColor.value.magFilter = THREE.NearestFilter;
+
+    this._quadScene = new THREE.Scene();
+    this._quadScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), blitMat));
   }
 
   /** Follow a target position — called every frame from Game */
@@ -146,6 +253,21 @@ export class SceneManager {
     }
   }
 
+  setPixelArt(enabled) {
+    CONFIG.PIXEL_ART_ENABLED = enabled;
+    if (enabled) {
+      this._buildPixelTarget();
+    } else if (this._pixelTarget) {
+      this._pixelTarget.dispose();
+      this._pixelTarget = null;
+      this._quadScene   = null;
+      this._quadCamera  = null;
+      // Restore renderer state that pixel art pass changes
+      this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+      this.renderer.setRenderTarget(null);
+    }
+  }
+
   shake(intensity = 0.5) {
     this._shakeIntensity = Math.max(this._shakeIntensity, intensity);
   }
@@ -159,6 +281,18 @@ export class SceneManager {
 
   render(dt = 0) {
     this._fogTime.value += dt;
-    this.renderer.render(this.scene, this.camera);
+    if (CONFIG.PIXEL_ART_ENABLED) {
+      // Pass 1: render scene into linear render target (no gamma encode yet)
+      this.renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
+      this.renderer.setRenderTarget(this._pixelTarget);
+      this.renderer.render(this.scene, this.camera);
+
+      // Pass 2: blit to screen — gamma encode happens exactly once here
+      this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+      this.renderer.setRenderTarget(null);
+      this.renderer.render(this._quadScene, this._quadCamera);
+    } else {
+      this.renderer.render(this.scene, this.camera);
+    }
   }
 }

@@ -4,8 +4,9 @@
 import { SaveManager } from '../core/SaveManager.js';
 
 export class HomePage {
-  constructor(onStart) {
+  constructor(onStart, onThemeChange) {
     this._onStart = onStart;
+    this._onThemeChange = onThemeChange;
     this._el = null;
     this._build();
   }
@@ -16,6 +17,7 @@ export class HomePage {
 
     const highScore = SaveManager.getHighScore();
     const savedName = SaveManager.getPlayerName();
+    const savedTheme = SaveManager.getTheme();
 
     el.innerHTML = `
       <div class="hp-card">
@@ -34,6 +36,18 @@ export class HomePage {
           value="${savedName}"
           autocomplete="off"
         />
+
+        <div class="hp-label" style="margin-bottom:10px;">Render Style</div>
+        <div class="hp-theme-toggle">
+          <button class="hp-theme-btn ${savedTheme === 'normal' ? 'active' : ''}" data-theme="normal">
+            <span class="hp-theme-icon">🏰</span>
+            Normal
+          </button>
+          <button class="hp-theme-btn ${savedTheme === 'pixel' ? 'active' : ''}" data-theme="pixel">
+            <span class="hp-theme-icon">🎮</span>
+            Pixel Art
+          </button>
+        </div>
 
         <button class="big-btn" id="begin-btn">⚔️ Begin the Run!</button>
       </div>
@@ -54,6 +68,16 @@ export class HomePage {
     beginBtn.addEventListener('click', start);
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') start();
+    });
+
+    el.querySelectorAll('.hp-theme-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        el.querySelectorAll('.hp-theme-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const theme = btn.dataset.theme;
+        SaveManager.setTheme(theme);
+        this._onThemeChange?.(theme);
+      });
     });
 
     // Auto-focus name field

@@ -44,7 +44,7 @@ export class Game {
     this._state  = GameState.MENU;
 
     // Core systems
-    this._renderer = new THREE.WebGLRenderer({ canvas: canvasEl, antialias: true });
+    this._renderer = new THREE.WebGLRenderer({ canvas: canvasEl, antialias: false });
     this._renderer.setSize(window.innerWidth, window.innerHeight);
 
     this.sceneManager  = new SceneManager(this._renderer);

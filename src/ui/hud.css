@@ -341,6 +341,46 @@
 }
 .hp-highscore span { color: var(--gold); font-weight: 700; }
 
+.hp-theme-toggle {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.hp-theme-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 8px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(245,200,66,0.2);
+  border-radius: 12px;
+  font-family: var(--font-medieval);
+  font-size: 0.78rem;
+  color: var(--parchment-dark);
+  cursor: pointer;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.hp-theme-btn:hover {
+  border-color: rgba(245,200,66,0.5);
+  background: rgba(245,200,66,0.06);
+  color: var(--parchment);
+}
+.hp-theme-btn.active {
+  border-color: var(--gold);
+  background: rgba(245,200,66,0.12);
+  color: var(--gold);
+  box-shadow: 0 0 12px rgba(245,200,66,0.2);
+}
+.hp-theme-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
 /* ─── Keyframes ───────────────────────────────────────────── */
 @keyframes fadeIn {
   from { opacity: 0; }

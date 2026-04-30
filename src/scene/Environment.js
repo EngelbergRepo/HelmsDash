@@ -4,9 +4,10 @@
 import * as THREE from 'three';
 import { CONFIG } from '../config.js';
 import { getAsset } from '../core/AssetRegistry.js';
+import { applyWorldBend } from '../core/worldBend.js';
 
 const TRACK_HALF_WIDTH = CONFIG.LANE_SPACING * (CONFIG.LANE_COUNT / 2) + 0.5;
-const SIDE_OFFSET = TRACK_HALF_WIDTH + 1.5; // distance from track centre to building edge
+const SIDE_OFFSET = TRACK_HALF_WIDTH + CONFIG.SIDE_SCENE_GAP;
 
 export class Environment {
   constructor(scene) {
@@ -18,11 +19,40 @@ export class Environment {
   }
 
   init() {
+    this._buildGroundPlanes();
+
     const strips = 4;
     for (let i = 0; i < strips; i++) {
       this._generateStrip(this._totalZ);
       this._totalZ -= this._stripLength;
     }
+  }
+
+  _buildGroundPlanes() {
+    const W = CONFIG.GROUND_PLANE_WIDTH;
+    // Segment long enough to always cover the visible distance (FOG_FAR + headroom)
+    const L = CONFIG.FAR;
+
+    // Texture repeats once in X; in Z it tiles proportionally to keep square pixels
+    const tex = new THREE.TextureLoader().load('/assets/models/environment/ground.png');
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(1, L / W);
+
+    const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 1.0, metalness: 0 });
+    applyWorldBend(mat);
+    // Many segments along Z so the vertex shader has enough vertices to show curvature and turn bend
+    const geo = new THREE.PlaneGeometry(W, L, 4, 80);
+
+    // Two segments leapfrog so there is always ground ahead
+    this._groundSegments = [0, 1].map(i => {
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.rotation.x = -Math.PI / 2;
+      mesh.position.set(0, -0.05, -L / 2 - i * L);
+      mesh.receiveShadow = true;
+      this._scene.add(mesh);
+      return mesh;
+    });
   }
 
   _generateStrip(startZ) {
@@ -88,6 +118,17 @@ export class Environment {
   }
 
   update(dz) {
+    if (this._groundSegments) {
+      const L = CONFIG.FAR;
+      for (const seg of this._groundSegments) {
+        seg.position.z += dz;
+        // When a segment scrolls fully past the player, leap it to the front
+        if (seg.position.z > CONFIG.DESPAWN_Z) {
+          seg.position.z -= L * 2;
+        }
+      }
+    }
+
     const moveAll = (arr) => {
       for (let i = arr.length - 1; i >= 0; i--) {
         arr[i].position.z += dz;
@@ -117,5 +158,11 @@ export class Environment {
     this._leftObjects = [];
     this._rightObjects = [];
     this._totalZ = 0;
+    if (this._groundSegments) {
+      const L = CONFIG.FAR;
+      this._groundSegments.forEach((seg, i) => {
+        seg.position.z = -L / 2 - i * L;
+      });
+    }
   }
 }

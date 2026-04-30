@@ -1,7 +1,8 @@
 // src/main.js — Bootstrap: scene, renderer, game loop
 
-import { Game }     from './core/Game.js';
-import { HomePage } from './ui/HomePage.js';
+import { Game }        from './core/Game.js';
+import { HomePage }    from './ui/HomePage.js';
+import { SaveManager } from './core/SaveManager.js';
 
 async function bootstrap() {
   const app = document.getElementById('app');
@@ -22,6 +23,12 @@ async function bootstrap() {
   const game = window._game = new Game(canvas);
   await game.init();
 
+  // Apply saved theme on boot
+  const savedTheme = SaveManager.getTheme();
+  if (savedTheme === 'pixel') game.sceneManager.setPixelArt(true);
+
+  const applyTheme = (theme) => game.sceneManager.setPixelArt(theme === 'pixel');
+
   let homepage = null;
 
   function showHomePage() {
@@ -29,7 +36,7 @@ async function bootstrap() {
     homepage = new HomePage((playerName) => {
       homepage = null;
       game.startFromMenu(playerName);
-    });
+    }, applyTheme);
   }
 
   // Listen for game requesting menu
