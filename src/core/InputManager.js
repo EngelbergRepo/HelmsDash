@@ -33,6 +33,7 @@ export class InputManager {
   }
 
   _onKeyDown(e) {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
     if (this._keys.has(e.code)) return; // prevent key repeat
     this._keys.add(e.code);
 
@@ -68,6 +69,7 @@ export class InputManager {
   }
 
   _onKeyUp(e) {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
     this._keys.delete(e.code);
   }
 

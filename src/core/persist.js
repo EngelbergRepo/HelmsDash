@@ -10,11 +10,11 @@ export async function persistToFile(filePath, data) {
       body: JSON.stringify({ path: filePath, data }),
     });
     if (!res.ok) throw new Error(await res.text());
-    console.info(`[persist] Saved → ${filePath}`);
+    // console.info(`[persist] Saved → ${filePath}`);
   } catch {
     // Dev server not available — fall back to localStorage
     localStorage.setItem('helmsdash:' + filePath, JSON.stringify(data));
-    console.warn(`[persist] File write unavailable; saved to localStorage: ${filePath}`);
+    // console.warn(`[persist] File write unavailable; saved to localStorage: ${filePath}`);
   }
 }
 

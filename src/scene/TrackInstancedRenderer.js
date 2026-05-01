@@ -66,7 +66,7 @@ export class TrackInstancedRenderer {
    */
   allocate(x, y, z, rotX) {
     if (this._freeIndices.length === 0) {
-      console.warn('[TrackInstancedRenderer] out of slots — increase MAX_TILES');
+      // console.warn('[TrackInstancedRenderer] out of slots — increase MAX_TILES');
       return -1;
     }
     const idx = this._freeIndices.pop();

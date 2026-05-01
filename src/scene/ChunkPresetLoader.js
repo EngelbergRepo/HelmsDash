@@ -21,7 +21,7 @@ export class ChunkPresetLoader {
         const group = await this._load(entry.file);
         results.push({ ...entry, group });
       } catch (e) {
-        console.warn(`[ChunkPresetLoader] Failed to load ${entry.file}:`, e);
+        // console.warn(`[ChunkPresetLoader] Failed to load ${entry.file}:`, e);
       }
     }
     return results;

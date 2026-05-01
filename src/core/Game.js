@@ -492,18 +492,18 @@ export class Game {
       const pb = this._player.bbox;
       const meshWorldPos = new THREE.Vector3();
       hitMesh.getWorldPosition(meshWorldPos);
-      console.log(
-        `[HIT]`
-        + `\n  obstacle type : ${hitObs.userData?.obstacleType ?? '(unknown)'}`
-        + `\n  mesh name     : ${hitMesh.name || '(unnamed)'}`
-        + `\n  mesh visible  : ${hitMesh.visible}  |  obs visible: ${hitObs.visible}`
-        + `\n  obs  world pos: x=${hitObs.getWorldPosition(new THREE.Vector3()).x.toFixed(2)}  y=${hitObs.getWorldPosition(new THREE.Vector3()).y.toFixed(2)}  z=${hitObs.getWorldPosition(new THREE.Vector3()).z.toFixed(2)}`
-        + `\n  mesh world pos: x=${meshWorldPos.x.toFixed(2)}  y=${meshWorldPos.y.toFixed(2)}  z=${meshWorldPos.z.toFixed(2)}`
-        + `\n  player state  : ${this._player.state}`
-        + `\n  player pos    : x=${f(this._player.group.position.toArray())}`
-        + `\n  player bbox   : min(${f(pb.min.toArray())})  max(${f(pb.max.toArray())})`
-        + `\n  mesh bbox     : min(${f(meshBox.min.toArray())})  max(${f(meshBox.max.toArray())})`
-      );
+      // console.log(
+      //   `[HIT]`
+      //   + `\n  obstacle type : ${hitObs.userData?.obstacleType ?? '(unknown)'}`
+      //   + `\n  mesh name     : ${hitMesh.name || '(unnamed)'}`
+      //   + `\n  mesh visible  : ${hitMesh.visible}  |  obs visible: ${hitObs.visible}`
+      //   + `\n  obs  world pos: x=${hitObs.getWorldPosition(new THREE.Vector3()).x.toFixed(2)}  y=${hitObs.getWorldPosition(new THREE.Vector3()).y.toFixed(2)}  z=${hitObs.getWorldPosition(new THREE.Vector3()).z.toFixed(2)}`
+      //   + `\n  mesh world pos: x=${meshWorldPos.x.toFixed(2)}  y=${meshWorldPos.y.toFixed(2)}  z=${meshWorldPos.z.toFixed(2)}`
+      //   + `\n  player state  : ${this._player.state}`
+      //   + `\n  player pos    : x=${f(this._player.group.position.toArray())}`
+      //   + `\n  player bbox   : min(${f(pb.min.toArray())})  max(${f(pb.max.toArray())})`
+      //   + `\n  mesh bbox     : min(${f(meshBox.min.toArray())})  max(${f(meshBox.max.toArray())})`
+      // );
       player.hit();
       this.sceneManager.shake(0.6);
       this.sceneManager.flash('#ff2200', 150);

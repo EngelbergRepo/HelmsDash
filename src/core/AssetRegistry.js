@@ -369,12 +369,12 @@ const _clipCache   = new Map();             // clipName → THREE.AnimationClip
 const _overrides   = {};
 
 export async function initAssetRegistry(onProgress) {
-  console.log('[AssetRegistry] init start');
+  // console.log('[AssetRegistry] init start');
 
   const overrides = await loadFromFile('assets/data/asset_overrides.json');
   if (overrides) {
     Object.assign(_overrides, overrides);
-    console.log('[AssetRegistry] overrides loaded:', Object.keys(_overrides));
+    // console.log('[AssetRegistry] overrides loaded:', Object.keys(_overrides));
   }
 
   // ── Pre-load mesh GLBs ───────────────────────────────────────
@@ -384,20 +384,20 @@ export async function initAssetRegistry(onProgress) {
   let loaded = 0;
   const tick = () => { onProgress?.(++loaded, total); };
 
-  console.log(`[AssetRegistry] queuing ${meshEntries.length} mesh loads`);
+  // console.log(`[AssetRegistry] queuing ${meshEntries.length} mesh loads`);
 
   const meshLoads = meshEntries.map(([key, entry]) => {
     const path = _overrides[key] || entry.glbPath;
     if (!path) {
-      console.log(`[AssetRegistry] skip ${key} — no glbPath`);
+      // console.log(`[AssetRegistry] skip ${key} — no glbPath`);
       tick(); return Promise.resolve();
     }
     if (_glbCache.has(path)) {
-      console.log(`[AssetRegistry] skip ${key} — already cached`);
+      // console.log(`[AssetRegistry] skip ${key} — already cached`);
       tick(); return Promise.resolve();
     }
     const url = '/' + path;
-    console.log(`[AssetRegistry] loading mesh ${key} from ${url}`);
+    // console.log(`[AssetRegistry] loading mesh ${key} from ${url}`);
     return new Promise(resolve => {
       _gltfLoader.load(url,
         gltf => {
@@ -423,7 +423,7 @@ export async function initAssetRegistry(onProgress) {
           }
           const size = new THREE.Vector3();
           new THREE.Box3().setFromObject(gltf.scene).getSize(size);
-          console.info(`[AssetRegistry] ✓ mesh  ${path}  ${size.x.toFixed(2)}×${size.y.toFixed(2)}×${size.z.toFixed(2)} m`);
+          // console.info(`[AssetRegistry] ✓ mesh  ${path}  ${size.x.toFixed(2)}×${size.y.toFixed(2)}×${size.z.toFixed(2)} m`);
           // Cache any animations bundled in the same file (e.g. knight_run.glb)
           if (gltf.animations.length > 0) {
             // Find which canonical clip name maps to this path
@@ -432,7 +432,7 @@ export async function initAssetRegistry(onProgress) {
               const clip = gltf.animations[0];
               clip.name = clipName;
               _clipCache.set(clipName, clip);
-              console.info(`[AssetRegistry] ✓ anim  "${clipName}" cached from mesh load  (${gltf.animations.length} clip(s) in file)`);
+              // console.info(`[AssetRegistry] ✓ anim  "${clipName}" cached from mesh load  (${gltf.animations.length} clip(s) in file)`);
             }
           }
           resolve();
@@ -440,7 +440,7 @@ export async function initAssetRegistry(onProgress) {
         undefined,
         (err) => {
           tick();
-          console.warn(`[AssetRegistry] ✗ mesh  ${path} — not found (placeholder used)`, err?.message ?? err);
+          // console.warn(`[AssetRegistry] ✗ mesh  ${path} — not found (placeholder used)`, err?.message ?? err);
           resolve();
         }
       );
@@ -450,20 +450,20 @@ export async function initAssetRegistry(onProgress) {
   // ── Pre-load animation GLBs (one clip per file) ──────────────
   // Skip any whose path is already loaded as a mesh (e.g. knight_run.glb serves double duty).
   // For those, the mesh load above already cached the clip.
-  console.log(`[AssetRegistry] queuing ${animEntries.length} anim loads:`, animEntries.map(([k]) => k));
+  // console.log(`[AssetRegistry] queuing ${animEntries.length} anim loads:`, animEntries.map(([k]) => k));
 
   const animLoads = animEntries.map(([clipName, path]) => {
     if (_clipCache.has(clipName)) {
-      console.log(`[AssetRegistry] skip anim "${clipName}" — already cached (shared with mesh load)`);
+      // console.log(`[AssetRegistry] skip anim "${clipName}" — already cached (shared with mesh load)`);
       tick(); return Promise.resolve();
     }
     const url = '/' + path;
-    console.log(`[AssetRegistry] loading anim "${clipName}" from ${url}`);
+    // console.log(`[AssetRegistry] loading anim "${clipName}" from ${url}`);
     return new Promise(resolve => {
       _gltfLoader.load(url,
         gltf => {
           tick();
-          console.log(`[AssetRegistry] anim GLB loaded for "${clipName}": ${gltf.animations.length} clip(s) found`);
+          // console.log(`[AssetRegistry] anim GLB loaded for "${clipName}": ${gltf.animations.length} clip(s) found`);
           if (gltf.animations.length > 0) {
             gltf.animations.forEach((c, i) =>
               console.log(`  [${i}] name="${c.name}" duration=${c.duration.toFixed(2)}s tracks=${c.tracks.length}`)
@@ -471,16 +471,16 @@ export async function initAssetRegistry(onProgress) {
             const clip = gltf.animations[0];
             clip.name = clipName;
             _clipCache.set(clipName, clip);
-            console.info(`[AssetRegistry] ✓ anim  "${clipName}" cached`);
+            // console.info(`[AssetRegistry] ✓ anim  "${clipName}" cached`);
           } else {
-            console.warn(`[AssetRegistry] ✗ anim  "${clipName}" — GLB has no animation tracks`);
+            // console.warn(`[AssetRegistry] ✗ anim  "${clipName}" — GLB has no animation tracks`);
           }
           resolve();
         },
         undefined,
         (err) => {
           tick();
-          console.warn(`[AssetRegistry] ✗ anim  "${clipName}" (${url}) — load failed:`, err?.message ?? err);
+          // console.warn(`[AssetRegistry] ✗ anim  "${clipName}" (${url}) — load failed:`, err?.message ?? err);
           resolve();
         }
       );
@@ -488,7 +488,7 @@ export async function initAssetRegistry(onProgress) {
   });
 
   await Promise.all([...meshLoads, ...animLoads]);
-  console.log(`[AssetRegistry] init complete — meshCache:${_glbCache.size} clipCache:${_clipCache.size}`);
+  // console.log(`[AssetRegistry] init complete — meshCache:${_glbCache.size} clipCache:${_clipCache.size}`);
 }
 
 /**
@@ -512,7 +512,7 @@ function _hasSkinnedMesh(obj) {
 export function getAsset(key) {
   const entry = REGISTRY[key];
   if (!entry) {
-    console.warn(`[AssetRegistry] Unknown key: ${key}`);
+    // console.warn(`[AssetRegistry] Unknown key: ${key}`);
     return new THREE.Group();
   }
 
@@ -521,7 +521,7 @@ export function getAsset(key) {
   if (glbPath && _glbCache.has(glbPath)) {
     const cached = _glbCache.get(glbPath);
     const skinned = _hasSkinnedMesh(cached);
-    console.log(`[AssetRegistry] getAsset("${key}") — ${skinned ? 'SkeletonUtils.clone' : '.clone'}`);
+    // console.log(`[AssetRegistry] getAsset("${key}") — ${skinned ? 'SkeletonUtils.clone' : '.clone'}`);
     return skinned ? SkeletonUtils.clone(cached) : cached.clone();
   }
 

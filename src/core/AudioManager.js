@@ -107,7 +107,7 @@ export class AudioManager {
         },
       };
     } catch (e) {
-      console.error(`[Audio] playGaplessLoop failed for "${src}":`, e);
+      // console.error(`[Audio] playGaplessLoop failed for "${src}":`, e);
       this.playLoop(key, src, options); // fallback
     }
   }

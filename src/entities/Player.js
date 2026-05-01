@@ -300,7 +300,7 @@ export class Player {
       p.timer -= dt;
       // Debug: log timer every ~1s to verify duration
       if (Math.floor((p.timer + dt) * 2) !== Math.floor(p.timer * 2)) {
-        console.log(`[Powerup] ${p.type} timer: ${p.timer.toFixed(2)}s / ${p.duration}s  (dt=${dt.toFixed(4)})`);
+        // console.log(`[Powerup] ${p.type} timer: ${p.timer.toFixed(2)}s / ${p.duration}s  (dt=${dt.toFixed(4)})`);
       }
       if (p.timer <= 0) {
         p.onExpire(this, game);
