@@ -381,6 +381,86 @@
   line-height: 1;
 }
 
+/* ─── Homepage Leaderboard ────────────────────────────────── */
+.hp-leaderboard-wrap {
+  margin-top: 22px;
+  width: 100%;
+  border-top: 1px solid rgba(245,200,66,0.18);
+  padding-top: 16px;
+}
+
+.hp-leaderboard-title {
+  font-family: var(--font-medieval);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold);
+  opacity: 0.75;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.hp-leaderboard-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.hp-lb-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 10px;
+  border-radius: 7px;
+  background: rgba(255,255,255,0.03);
+  font-size: 0.78rem;
+  color: var(--parchment);
+  transition: background 0.12s;
+}
+.hp-lb-row:first-child {
+  background: rgba(245,200,66,0.10);
+}
+.hp-lb-row:hover {
+  background: rgba(245,200,66,0.07);
+}
+
+.hp-lb-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.hp-lb-rank {
+  font-size: 0.68rem;
+  opacity: 0.45;
+  flex-shrink: 0;
+}
+
+.hp-lb-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hp-lb-score {
+  color: var(--gold);
+  font-weight: 700;
+  font-size: 0.78rem;
+  white-space: nowrap;
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+.hp-lb-loading,
+.hp-lb-empty {
+  font-size: 0.76rem;
+  color: var(--parchment-dark);
+  opacity: 0.5;
+  text-align: center;
+  padding: 8px 0;
+}
+
 /* ─── Achievement Toast ───────────────────────────────────── */
 .achievement-toast {
   position: absolute;

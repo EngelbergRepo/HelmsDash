@@ -52,9 +52,11 @@ export class HomePage {
 
         <button class="big-btn" id="begin-btn">⚔️ Begin the Run!</button>
 
-        <div style="margin-top:18px;width:100%;">
-          <div style="font-size:0.75rem;opacity:0.5;letter-spacing:0.1em;margin-bottom:6px;">🏆 TOP KNIGHTS</div>
-          <div id="hp-leaderboard" style="font-size:0.78rem;opacity:0.8;">Loading…</div>
+        <div class="hp-leaderboard-wrap">
+          <div class="hp-leaderboard-title">🏆 Hall of Champions</div>
+          <div id="hp-leaderboard" class="hp-leaderboard-list">
+            <div class="hp-lb-loading">Loading…</div>
+          </div>
         </div>
       </div>
     `;
@@ -93,16 +95,21 @@ export class HomePage {
     fetchTopScores().then(scores => {
       const lbEl = el.querySelector('#hp-leaderboard');
       if (!lbEl) return;
-      if (!scores.length) { lbEl.textContent = 'No runs yet — be the first!'; return; }
-      lbEl.innerHTML = scores.map(s =>
-        `<div style="display:flex;justify-content:space-between;padding:2px 0;">
-          <span><span style="opacity:0.4">#${s.rank} </span>${s.name}</span>
-          <span>💰 ${s.score.toLocaleString()}</span>
-        </div>`
-      ).join('');
+      if (!scores.length) {
+        lbEl.innerHTML = '<div class="hp-lb-empty">No runs yet — be the first!</div>';
+        return;
+      }
+      const medals = ['🥇', '🥈', '🥉'];
+      lbEl.innerHTML = scores.map(s => {
+        const prefix = medals[s.rank - 1] ?? `<span class="hp-lb-rank">#${s.rank}</span>`;
+        return `<div class="hp-lb-row">
+          <span class="hp-lb-left">${prefix} <span class="hp-lb-name">${s.name}</span></span>
+          <span class="hp-lb-score">💰 ${s.score.toLocaleString()}</span>
+        </div>`;
+      }).join('');
     }).catch(() => {
       const lbEl = el.querySelector('#hp-leaderboard');
-      if (lbEl) lbEl.textContent = '';
+      if (lbEl) lbEl.innerHTML = '';
     });
   }
 
