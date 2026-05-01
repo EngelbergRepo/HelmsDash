@@ -22,7 +22,8 @@ async function bootstrap() {
 
   // Boot the game engine — show progress bar while assets load
   const loading = new LoadingScreen();
-  const game = window._game = new Game(canvas);
+  const game = new Game(canvas);
+  if (import.meta.env.DEV) window._game = game;
   await game.init((loaded, total) => loading.onProgress(loaded, total));
   loading.destroy();
 

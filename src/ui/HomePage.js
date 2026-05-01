@@ -3,6 +3,7 @@
 
 import { SaveManager } from '../core/SaveManager.js';
 import { fetchTopScores } from '../leaderboard.js';
+import { escapeHtml } from './escapeHtml.js';
 
 export class HomePage {
   constructor(onStart, onThemeChange) {
@@ -103,8 +104,8 @@ export class HomePage {
       lbEl.innerHTML = scores.map(s => {
         const prefix = medals[s.rank - 1] ?? `<span class="hp-lb-rank">#${s.rank}</span>`;
         return `<div class="hp-lb-row">
-          <span class="hp-lb-left">${prefix} <span class="hp-lb-name">${s.name}</span></span>
-          <span class="hp-lb-score">💰 ${s.score.toLocaleString()}</span>
+          <span class="hp-lb-left">${prefix} <span class="hp-lb-name">${escapeHtml(s.name)}</span></span>
+          <span class="hp-lb-score">💰 ${escapeHtml(s.score.toLocaleString())}</span>
         </div>`;
       }).join('');
     }).catch(() => {

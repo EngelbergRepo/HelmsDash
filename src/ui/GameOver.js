@@ -1,6 +1,7 @@
 // src/ui/GameOver.js
 import { SaveManager } from '../core/SaveManager.js';
 import { submitScore, fetchTopScores } from '../leaderboard.js';
+import { escapeHtml } from './escapeHtml.js';
 
 export class GameOver {
   constructor(onRestart, onQuit) {
@@ -18,7 +19,7 @@ export class GameOver {
     el.innerHTML = `
       <div class="overlay-card">
         <div class="overlay-title">⚔️ Fallen!</div>
-        <div class="overlay-subtitle">${playerName || 'Knight'}'s run has ended</div>
+        <div class="overlay-subtitle">${escapeHtml(playerName || 'Knight')}'s run has ended</div>
 
         ${isNewHighScore ? `<div style="color:#f5c842;font-size:0.85rem;margin-bottom:12px;letter-spacing:0.1em;">✨ NEW BEST RUN! ✨</div>` : ''}
 
@@ -90,8 +91,8 @@ function _renderTable(scores, currentName) {
     const highlight = s.name === currentName ? 'style="color:#f5c842;"' : '';
     return `<tr ${highlight}>
       <td style="padding:1px 6px;opacity:0.5;">#${s.rank}</td>
-      <td style="padding:1px 6px;">${s.name}</td>
-      <td style="padding:1px 6px;text-align:right;">💰 ${s.score.toLocaleString()}</td>
+      <td style="padding:1px 6px;">${escapeHtml(s.name)}</td>
+      <td style="padding:1px 6px;text-align:right;">💰 ${escapeHtml(s.score.toLocaleString())}</td>
     </tr>`;
   }).join('');
   return `<table style="width:100%;border-collapse:collapse;">${rows}</table>`;
