@@ -338,7 +338,7 @@ export class Game {
     // Update systems
     player.update(dt, this);
     this._trackGen.update(dt, effectiveSpeed);
-    this._environment.update(effectiveSpeed * dt);
+    this._environment.update(effectiveSpeed * dt, this._player.group.position.x, dt);
 
     // Scroll jetpack coin groups and portal with the world
     const dz = effectiveSpeed * dt;

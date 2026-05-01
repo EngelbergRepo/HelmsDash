@@ -164,3 +164,85 @@ HelmsDash/
   indices. _spawnAt attaches _onRelease to each chunk so slots are freed when the chunk is recycled.   update scrolls the renderer alongside the pool.
 
   ChunkPool.js — calls _onRelease before clearing children in release().
+
+
+  to do:
+
+leader borad. fire base- make a firebset prject
+
+
+make a vercel project. 
+make a vercel domain.
+set enviroment variables.
+create different collections for gameplay
+
+
+claude:
+make a leader board
+go through all the rules and make sure they all check.
+
+
+vibejam rules: yes
+
+
+Widget (required) - checked. 
+
+fix the vibejam portal: 
+"
+Note: this Vibe Jam Portal is a totally different thing than the required widget snippet above. The widget is mandatory and just tracks your game; portals are optional and let players hop between games like a webring.
+
+Make an exit portal in your game players can walk/fly/drive into — you can add a label like Vibe Jam Portal. This way players can play and hop to the next game like a Vibe Jam 2026 Webring! Your game will be added to the webring if you have a portal.
+
+When the player enters the portal, redirect them to:
+
+https://vibej.am/portal/2026
+You can send GET query params that get forwarded to the next game:
+
+username= — username/name of the player
+color= — player color in hex or just red/green/yellow
+speed= — meters per second
+ref= — URL of the game the player came from
+Use ?ref= to add a portal BACK to the game they came from.
+
+Example URL:
+
+https://vibej.am/portal/2026?username=levelsio&color=red&speed=5&ref=fly.pieter.com
+The receiving game can use this info to spawn the player with full continuity!
+
+Optional extra params:
+
+avatar_url=
+team=
+hp= — health points; 1..100 range
+speed_x= — meters per second
+speed_y= — meters per second
+speed_z= — meters per second
+rotation_x= — radians
+rotation_y= — radians
+rotation_z= — radians
+The portal redirector will always add ?portal=true so you can detect when a user comes from a portal and instantly drop them into your game out of another portal — no start screens.
+
+(!) IMPORTANT — Add a start portal:
+
+When receiving a user (with ?portal=true in your URL) and a ?ref=, make a portal where the user spawns out of so they can return back to the previous game by walking into it. When returning them, make sure to send all the query parameters again too.
+
+All parameters except portal are optional and may or may not be present — do not rely on their presence.
+
+IMPORTANT: make sure your game instantly loads — no loading screens, no input screens — so the continuity is nice for players.
+
+SAMPLE CODE — copy-paste-ready Three.js snippet for start + exit portals. Include it with a <script src>, call initVibeJamPortals({ scene, getPlayer }) once, and animateVibeJamPortals() inside your animate loop.
+
+https://vibej.am/2026/portal/sample.js
+
+<script src="https://vibej.am/2026/portal/sample.js"></script>
+<script>
+  initVibeJamPortals({
+    scene: yourScene,
+    getPlayer: () => yourPlayerObject3D,
+    spawnPoint:   { x: 0, y: 0, z: 0 },
+    exitPosition: { x: -200, y: 200, z: -300 },
+  });
+  // Inside your existing animate/render loop:
+  // animateVibeJamPortals();
+</script>
+"

@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { CONFIG } from '../config.js';
 import { getAsset } from '../core/AssetRegistry.js';
 import { applyWorldBend } from '../core/worldBend.js';
+import { Sky } from './Sky.js';
 
 const TRACK_HALF_WIDTH = CONFIG.LANE_SPACING * (CONFIG.LANE_COUNT / 2) + 0.5;
 const SIDE_OFFSET = TRACK_HALF_WIDTH + CONFIG.SIDE_SCENE_GAP;
@@ -16,9 +17,11 @@ export class Environment {
     this._rightObjects = [];
     this._totalZ = 0; // how far we've generated
     this._stripLength = 60; // generate in strips
+    this._sky = new Sky(scene);
   }
 
   init() {
+    this._sky.init();
     this._buildGroundPlanes();
 
     const strips = 4;
@@ -117,7 +120,9 @@ export class Environment {
     return obj;
   }
 
-  update(dz) {
+  update(dz, cameraX = 0, dt = 0) {
+    this._sky.update(dz, cameraX, dt);
+
     if (this._groundSegments) {
       const L = CONFIG.FAR;
       for (const seg of this._groundSegments) {
@@ -154,6 +159,7 @@ export class Environment {
   }
 
   reset() {
+    this._sky.reset();
     [...this._leftObjects, ...this._rightObjects].forEach(o => this._scene.remove(o));
     this._leftObjects = [];
     this._rightObjects = [];

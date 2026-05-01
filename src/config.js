@@ -5,9 +5,11 @@ export const CONFIG = {
   FOV: 70,
   NEAR: 0.1,
   FAR: 300,
-  FOG_COLOR: 0xc8b89a,
+  FOG_COLOR: 0xDED2BD,
   FOG_NEAR: 40,
   FOG_FAR: 120,
+  SKY_HORIZON_LINE:   -0.1, // vY where fog meets sky: 0 = dome equator, positive = higher up, negative = lower
+  SKY_HORIZON_SPREAD: 8,  // transition sharpness: higher = hard line, lower = soft haze
 
   // ── Pixel Art Rendering ──────────────────────────────────────
   PIXEL_ART_ENABLED:        false,

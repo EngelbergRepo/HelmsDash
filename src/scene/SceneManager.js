@@ -36,8 +36,8 @@ export class SceneManager {
     this._quadCamera  = null;
     if (CONFIG.PIXEL_ART_ENABLED) this._buildPixelTarget();
 
-    // Sky colour
-    scene.background = new THREE.Color(0xc8b89a);
+    // Background matches sky dome horizon band — visible only before dome renders
+    scene.background = new THREE.Color(0xd1bf9e);
     scene.fog = new THREE.Fog(CONFIG.FOG_COLOR, CONFIG.FOG_NEAR, CONFIG.FOG_FAR);
 
     // Hemisphere light (sky/ground)
