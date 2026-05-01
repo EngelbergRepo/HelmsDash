@@ -11,6 +11,8 @@ import { InputManager }    from './InputManager.js';
 import { AudioManager }    from './AudioManager.js';
 import { ShaderManager }   from './ShaderManager.js';
 import { SaveManager }     from './SaveManager.js';
+import { StepPlayer }     from './StepPlayer.js';
+import { SfxPool }        from './SfxPool.js';
 import { initAssetRegistry } from './AssetRegistry.js';
 import { setTurnBend } from './worldBend.js';
 import { HUD }      from '../ui/HUD.js';
@@ -67,6 +69,10 @@ export class Game {
     this._hud         = null;
     this._pauseMenu   = null;
     this._gameOver    = null;
+    this._stepPlayer  = new StepPlayer(this.audioManager);
+    this._coinSfx     = new SfxPool(this.audioManager);
+    this._hitSfx      = new SfxPool(this.audioManager);
+    this._powerupSfx  = new SfxPool(this.audioManager);
 
     // RAF id
     this._rafId = null;
@@ -82,8 +88,8 @@ export class Game {
     window.addEventListener('resize', () => {});
   }
 
-  async init() {
-    await initAssetRegistry();
+  async init(onProgress) {
+    await initAssetRegistry(onProgress);
     await this.audioManager.init();
 
     // Pre-create UI elements
@@ -104,7 +110,31 @@ export class Game {
 
   async startFromMenu(playerName) {
     this._playerName = playerName;
+    const veil = this._showVeil();
     await this._startSession(playerName);
+    this._hideVeil(veil);
+  }
+
+  _showVeil() {
+    const el = document.createElement('div');
+    el.style.cssText = [
+      'position:fixed', 'inset:0', 'z-index:100',
+      'background:#000', 'opacity:0',
+      'transition:opacity 0.25s ease',
+      'pointer-events:all',
+    ].join(';');
+    document.getElementById('app').appendChild(el);
+    // Trigger reflow so the transition fires
+    el.getBoundingClientRect();
+    el.style.opacity = '1';
+    return el;
+  }
+
+  _hideVeil(el) {
+    el.style.pointerEvents = 'none'; // stop blocking clicks immediately
+    el.style.transition = 'opacity 0.4s ease';
+    el.style.opacity = '0';
+    el.addEventListener('transitionend', () => el.remove(), { once: true });
   }
 
   async _startSession(playerName) {
@@ -128,9 +158,10 @@ export class Game {
     await this._trackGen.init();
     this._environment.init();
 
-    this._speed        = CONFIG.START_SPEED;
-    this._elapsed      = 0;
-    this._nextPowerupIn = this._randomPowerupInterval();
+    this._speed          = CONFIG.START_SPEED;
+    this._elapsed        = 0;
+    this._nextPowerupIn  = this._randomPowerupInterval();
+    this._coinMilestone  = CONFIG.ACHIEVEMENT_THRESHOLD;
     resetJetpackCounter();
 
     // Reset turn bend
@@ -148,6 +179,7 @@ export class Game {
       if (p._groundY < 0.5 && p.state !== PlayerState.JETPACK &&
           this._trackGen?.isCarriageBlockingLane(p.targetLane - 1, p.group.position.z)) return;
       p.moveLeft();
+      this.audioManager.play('swish_left', '/assets/music/steps/swish_left.mp3', { volume: CONFIG.SWISH_VOLUME });
     });
     this._inputManager.on('moveRight', this._boundRight = () => {
       const p = this._player;
@@ -155,12 +187,52 @@ export class Game {
       if (p._groundY < 0.5 && p.state !== PlayerState.JETPACK &&
           this._trackGen?.isCarriageBlockingLane(p.targetLane + 1, p.group.position.z)) return;
       p.moveRight();
+      this.audioManager.play('swish_right', '/assets/music/steps/swish_right.mp3', { volume: CONFIG.SWISH_VOLUME });
     });
-    this._inputManager.on('jump',      this._boundJump  = () => this._player?.jump());
-    this._inputManager.on('roll',      this._boundRoll  = () => this._player?.roll());
+    this._inputManager.on('jump', this._boundJump = () => {
+      const p = this._player;
+      if (!p) return;
+      if (p.state === PlayerState.ROLLING || p.state === PlayerState.JETPACK) return;
+      p.jump();
+      this.audioManager.play('swish_jump', '/assets/music/steps/swish_jump.mp3', { volume: CONFIG.SWISH_VOLUME });
+    });
+    this._inputManager.on('roll', this._boundRoll = () => {
+      const p = this._player;
+      if (!p) return;
+      if (p.state === PlayerState.JUMPING || p.state === PlayerState.JETPACK) return;
+      p.roll();
+      this.audioManager.play('swish_roll', '/assets/music/steps/swish_roll.mp3', { volume: CONFIG.SWISH_VOLUME });
+    });
 
-    // Play gameplay music
-    // this.audioManager.playMusic('gameplay', '/assets/audio/music/gameplay_track.mp3');
+    this.playGameplayMusic();
+
+    // Footsteps — seeded per session so each game has a different shuffle
+    this._stepPlayer.init({
+      srcs: Array.from({ length: 10 }, (_, i) =>
+        `/assets/music/steps/step${i + 1}.mp3`
+      ),
+      volume:   CONFIG.STEPS_VOLUME,
+      interval: CONFIG.STEPS_INTERVAL,
+      seed:     (Math.random() * 0xffffffff) >>> 0,
+    });
+
+    this._coinSfx.init({
+      srcs:      Array.from({ length: 10 }, (_, i) => `/assets/music/coins/coin${i + 1}.mp3`),
+      volume:    CONFIG.COINS_VOLUME,
+      keyPrefix: 'coin_sfx',
+    });
+
+    this._hitSfx.init({
+      srcs:      [1, 2, 3].map(n => `/assets/music/steps/hit_${n}.mp3`),
+      volume:    CONFIG.HIT_VOLUME,
+      keyPrefix: 'hit_sfx',
+    });
+
+    this._powerupSfx.init({
+      srcs:      [1, 2, 3].map(n => `/assets/music/steps/powerup${n}.mp3`),
+      volume:    CONFIG.POWERUP_SFX_VOLUME,
+      keyPrefix: 'powerup_sfx',
+    });
 
     this._state = GameState.PLAYING;
   }
@@ -173,6 +245,10 @@ export class Game {
     if (this._boundRoll)  { this._inputManager.off('roll', this._boundRoll); }
 
     if (this._jetTrail)   { this._jetTrail.destroy(); this._jetTrail = null; }
+    this._stepPlayer?.destroy();
+    this._coinSfx?.destroy();
+    this._hitSfx?.destroy();
+    this._powerupSfx?.destroy();
 
     this._trackGen?.reset();
     this._environment?.reset?.();
@@ -213,7 +289,8 @@ export class Game {
     const isNew = SaveManager.setHighScore(Math.floor(xp));
     SaveManager.addCoins(coins);
 
-    this.audioManager.stopMusic(800);
+    this.audioManager.play('gameover', '/assets/music/steps/gameover.mp3', { volume: CONFIG.GAMEOVER_VOLUME });
+    this.playHomeMusic();
     this.sceneManager.flash('#ff0000', 400);
     this.sceneManager.shake(1.0);
 
@@ -293,6 +370,12 @@ export class Game {
       this._nextPowerupIn = this._randomPowerupInterval();
       // Powerup items are now placed inside chunks; no extra spawning needed here
     }
+
+    // Footsteps — active only while running/hurt; jetpack state already excluded
+    const steppingState = player.state === PlayerState.RUNNING || player.state === PlayerState.HURT;
+    const stepRate = (steppingState && player.hasPowerup('sprint_shoes'))
+      ? CONFIG.STEPS_SPRINT_RATE : 1.0;
+    this._stepPlayer.update(dt, steppingState, stepRate);
 
     // Jetpack trail
     if (player.state === PlayerState.JETPACK) {
@@ -424,6 +507,7 @@ export class Game {
       player.hit();
       this.sceneManager.shake(0.6);
       this.sceneManager.flash('#ff2200', 150);
+      this._hitSfx.play();
     }
   }
 
@@ -462,7 +546,14 @@ export class Game {
         coin.visible = false;
         const value = CONFIG.COIN_VALUE * (hasDoubler ? 2 : 1);
         player.coins += value;
-        // this.audioManager.play('coin', '/assets/audio/sfx/coin_pickup.wav');
+        this._coinSfx.play();
+
+        if (player.coins >= this._coinMilestone) {
+          player.coins += CONFIG.ACHIEVEMENT_BONUS;
+          this._coinMilestone += CONFIG.ACHIEVEMENT_THRESHOLD;
+          this.audioManager.play('achievement', '/assets/music/steps/achievement.mp3', { volume: CONFIG.ACHIEVEMENT_VOLUME });
+          this._hud?.showAchievement(`+${CONFIG.ACHIEVEMENT_BONUS} Bonus! ${this._coinMilestone - CONFIG.ACHIEVEMENT_THRESHOLD} Coins`);
+        }
       }
     }
   }
@@ -492,7 +583,7 @@ export class Game {
           const buff = factory();
           buff.onActivate(player, this);
           player.activePowerups.push(buff);
-          // this.audioManager.play('powerup', '/assets/audio/sfx/powerup_collect.wav');
+          this._powerupSfx.play();
         }
       }
     }
@@ -526,6 +617,20 @@ export class Game {
   }
 
   // ── Helpers ────────────────────────────────────────────────
+
+  playHomeMusic() {
+    this.audioManager.stopLoop('gameplay_music', 600);
+    setTimeout(() => {
+      this.audioManager.playGaplessLoop('home_music', '/assets/music/steps/home_music.mp3', { volume: CONFIG.HOME_MUSIC_VOLUME });
+    }, 620);
+  }
+
+  playGameplayMusic() {
+    this.audioManager.stopLoop('home_music', 600);
+    setTimeout(() => {
+      this.audioManager.playGaplessLoop('gameplay_music', '/assets/music/steps/gameplay_music.mp3', { volume: CONFIG.GAMEPLAY_MUSIC_VOLUME });
+    }, 620);
+  }
 
   _randomPowerupInterval() {
     const [min, max] = CONFIG.POWERUP_SPAWN_INTERVAL;

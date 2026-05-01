@@ -49,7 +49,7 @@ export class HUD {
     });
     hud.querySelector('#btn-mute').addEventListener('click', () => {
       const muted = this._game.audioManager.toggleMute();
-      hud.querySelector('#btn-mute').textContent = muted ? '🔇 Muted' : '🔊 Sound';
+      hud.querySelector('#btn-mute').textContent = muted ? '🔇' : '🔊';
     });
 
     this._buildHearts();
@@ -109,6 +109,15 @@ export class HUD {
       </div>
     `;
     return pill;
+  }
+
+  showAchievement(label) {
+    const toast = document.createElement('div');
+    toast.className = 'achievement-toast';
+    toast.innerHTML = `<span class="achievement-icon">🏆</span><span class="achievement-text">${label}</span>`;
+    this._el.appendChild(toast);
+    // Remove after animation completes
+    toast.addEventListener('animationend', () => toast.remove(), { once: true });
   }
 
   show() { this._el.style.display = 'flex'; }

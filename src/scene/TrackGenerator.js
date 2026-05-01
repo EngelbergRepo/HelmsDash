@@ -407,6 +407,7 @@ export class TrackGenerator {
     this._formations = [];
     this._formationQueue = [];
     this._wagonsOverflowChunks = 0; // how many upcoming chunks are inside a wagon body
+    this._safeChunksRemaining = 2;  // first N chunks are always obstacle-free
     this._trackRenderer = new TrackInstancedRenderer(scene);
   }
 
@@ -470,6 +471,21 @@ export class TrackGenerator {
     const difficulty = this._getDifficulty(speed);
     let chunkGroup;
     let isObstacleChunk = false;
+
+    // First N chunks are always clear so the player has time to orient
+    if (this._safeChunksRemaining > 0) {
+      this._safeChunksRemaining--;
+      chunkGroup = generateProceduralChunk(difficulty, -1, true);
+      isObstacleChunk = false;
+      const chunk = this._pool.acquire();
+      chunk.add(chunkGroup);
+      chunk.position.z = z;
+      const tileIndices = buildTrackGround(z, this._trackRenderer);
+      const renderer = this._trackRenderer;
+      chunk.userData._onRelease = () => tileIndices.forEach(i => renderer.free(i));
+      this._scene.add(chunk);
+      return;
+    }
 
     if (this._formationQueue.length > 0) {
       // Mid-formation: never insert a gap between formation slots.
@@ -695,8 +711,10 @@ export class TrackGenerator {
       this._scene.remove(chunk);
       this._pool.release(chunk);
     }
+    this._trackRenderer.destroy(); // remove InstancedMeshes so the next session starts clean
     this._formationQueue = [];
     this._lastChunkHadObstacle = false;
     this._wagonsOverflowChunks = 0;
+    this._safeChunksRemaining = 2;
   }
 }

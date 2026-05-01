@@ -29,7 +29,7 @@ export class AudioManager {
       loop: options.loop || false,
       volume: options.volume ?? CONFIG.SFX_VOLUME,
       preload: true,
-      onloaderror: () => console.warn(`[Audio] Failed to load: ${src}`),
+      onloaderror: (_id, err) => console.error(`[Audio] Failed to load "${src}":`, err),
     });
 
     return this._sounds[key];
@@ -71,9 +71,62 @@ export class AudioManager {
     if (sound && !sound.playing()) sound.play();
   }
 
+  // Truly gapless loop via Web Audio API — no MP3 encoder-padding silence.
+  // Falls back to playLoop if the AudioContext is unavailable.
+  async playGaplessLoop(key, src, options = {}) {
+    if (!this._initialized) return;
+    if (this._sounds[key]) return; // already running
+
+    const ctx = this._Howler.ctx;
+    if (!ctx) { this.playLoop(key, src, options); return; }
+
+    const volume = options.volume ?? CONFIG.SFX_VOLUME;
+    try {
+      const buf = await fetch(src).then(r => r.arrayBuffer());
+      const audioBuffer = await ctx.decodeAudioData(buf);
+
+      const gainNode = ctx.createGain();
+      gainNode.gain.value = this._muted ? 0 : volume;
+      gainNode.connect(ctx.destination);
+
+      const source = ctx.createBufferSource();
+      source.buffer = audioBuffer;
+      source.loop   = true;
+      source.connect(gainNode);
+      source.start(0);
+
+      this._sounds[key] = {
+        _webAudio: true,
+        _gain:     gainNode,
+        _source:   source,
+        _volume:   volume,
+        stop() { try { source.stop(); } catch (_) {} gainNode.disconnect(); },
+        fade(from, to, ms) {
+          gainNode.gain.setValueAtTime(from, ctx.currentTime);
+          gainNode.gain.linearRampToValueAtTime(to, ctx.currentTime + ms / 1000);
+        },
+      };
+    } catch (e) {
+      console.error(`[Audio] playGaplessLoop failed for "${src}":`, e);
+      this.playLoop(key, src, options); // fallback
+    }
+  }
+
   stopLoop(key, fadeMs = 300) {
     const sound = this._sounds[key];
     if (!sound) return;
+
+    if (sound._webAudio) {
+      if (fadeMs > 0) {
+        sound.fade(sound._gain.gain.value, 0, fadeMs);
+        setTimeout(() => { sound.stop(); delete this._sounds[key]; }, fadeMs);
+      } else {
+        sound.stop();
+        delete this._sounds[key];
+      }
+      return;
+    }
+
     if (fadeMs > 0) {
       sound.fade(sound.volume(), 0, fadeMs);
       setTimeout(() => sound.stop(), fadeMs);
@@ -86,6 +139,13 @@ export class AudioManager {
     this._muted = muted;
     if (!this._initialized) return;
     this._Howler.mute(muted);
+    // Web Audio nodes bypass Howler — mute their gain nodes directly
+    const ctx = this._Howler.ctx;
+    for (const sound of Object.values(this._sounds)) {
+      if (sound && sound._webAudio === true && sound._gain) {
+        sound._gain.gain.setTargetAtTime(muted ? 0 : sound._volume, ctx.currentTime, 0.05);
+      }
+    }
   }
 
   toggleMute() {

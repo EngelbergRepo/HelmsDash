@@ -105,6 +105,18 @@ export class TrackInstancedRenderer {
     }
   }
 
+  /** Remove all InstancedMeshes from the scene and release GPU resources. */
+  destroy() {
+    for (const im of this._iMeshes) {
+      this._scene.remove(im);
+      im.geometry.dispose();
+    }
+    this._iMeshes   = [];
+    this._meshInfos = [];
+    this._slots.fill(null);
+    this._freeIndices = Array.from({ length: MAX_TILES }, (_, i) => i);
+  }
+
   _writeMatrix(idx) {
     const s = this._slots[idx];
     this._dummy.position.set(s.x, s.y, s.z);

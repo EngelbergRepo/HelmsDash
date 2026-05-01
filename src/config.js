@@ -55,7 +55,7 @@ export const CONFIG = {
 
   // ── Speed ─────────────────────────────────────────────────
   START_SPEED: 10,            // m/s — world scroll speed at session start
-  SPEED_RAMP: 0.01,           // m/s gained per second (reaches MAX in ~3 min from START)
+  SPEED_RAMP: 0.1,           // m/s gained per second (reaches MAX in ~3 min from START)
   MAX_SPEED: 50,
   SPRINT_MULTIPLIER: 1.6,
   PROCEDURAL_CHUNK_WEIGHT: 0.3, // probability of procedural vs preset chunk
@@ -137,8 +137,22 @@ export const CONFIG = {
   SIDE_SCENE_GAP: 0,       // metres between the track edge and the nearest side asset (trees, buildings)
 
   // ── Audio ─────────────────────────────────────────────────
-  MUSIC_VOLUME: 0.4,
-  SFX_VOLUME: 0.8,
+  MUSIC_VOLUME:          0.4,
+  SFX_VOLUME:            0.8,
+  HOME_MUSIC_VOLUME:     0.45,  // homepage / game-over music volume (0–1)
+  GAMEPLAY_MUSIC_VOLUME: 0.4,   // in-game music volume (0–1)
+  STEPS_VOLUME:       0.8,   // footstep sequence volume (0–1)
+  STEPS_INTERVAL:     0.28,  // seconds between each footstep sound (~3.5 steps/sec)
+  STEPS_SPRINT_RATE:  1.6,   // interval divisor when sprint_shoes are active
+  COINS_VOLUME:       0.6,   // coin collection sound volume (0–1)
+  SWISH_VOLUME:       0.7,   // jump / roll / lane-switch swish volume (0–1)
+  HIT_VOLUME:         0.9,   // obstacle hit sound volume (0–1)
+  GAMEOVER_VOLUME:      0.9,  // game over sound volume (0–1)
+  ACHIEVEMENT_VOLUME:   0.9,  // achievement sound volume (0–1)
+  ACHIEVEMENT_THRESHOLD: 100, // coins per milestone
+  ACHIEVEMENT_BONUS:     20,  // bonus coins awarded at each milestone
+  JETPACK_SFX_VOLUME: 0.7,   // jetpack thruster loop volume (0–1)
+  POWERUP_SFX_VOLUME: 0.8,   // powerup collect sound volume (0–1)
 
   // ── Camera ────────────────────────────────────────────────
   CAMERA_BEHIND: 6,
@@ -152,5 +166,5 @@ export const CONFIG = {
   TURN_STRENGTH:         0.00001, // lateral X bend magnitude (same scale as WORLD_CURVE_STRENGTH)
   TURN_FREQUENCY:        0,      // average seconds between turns
   TURN_HOLD_DURATION:    4,       // seconds to hold full bend before straightening
-  TURN_TRANSITION_TIME:  10,     // seconds to ramp bend in or out
+  TURN_TRANSITION_TIME:  15,     // seconds to ramp bend in or out
 };

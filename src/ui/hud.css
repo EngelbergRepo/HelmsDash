@@ -381,7 +381,42 @@
   line-height: 1;
 }
 
+/* ─── Achievement Toast ───────────────────────────────────── */
+.achievement-toast {
+  position: absolute;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(135deg, rgba(80,0,160,0.85), rgba(40,0,80,0.92));
+  border: 1px solid rgba(180,80,255,0.55);
+  border-radius: 40px;
+  padding: 10px 24px 10px 16px;
+  color: #e8c8ff;
+  font-family: var(--font-deco);
+  font-size: 0.95rem;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 0 24px rgba(160,60,255,0.45), 0 4px 20px rgba(0,0,0,0.6);
+  animation: achievementPop 3s cubic-bezier(.2,1.4,.4,1) forwards;
+  z-index: 20;
+}
+
+.achievement-icon { font-size: 1.3rem; line-height: 1; }
+.achievement-text { text-shadow: 0 0 12px rgba(200,100,255,0.7); }
+
 /* ─── Keyframes ───────────────────────────────────────────── */
+@keyframes achievementPop {
+  0%   { opacity: 0; transform: translateX(-50%) translateY(-18px) scale(0.85); }
+  12%  { opacity: 1; transform: translateX(-50%) translateY(0)     scale(1.05); }
+  20%  { transform: translateX(-50%) translateY(0) scale(1); }
+  75%  { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-10px) scale(0.95); }
+}
+
 @keyframes fadeIn {
   from { opacity: 0; }
   to   { opacity: 1; }

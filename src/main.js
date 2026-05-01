@@ -1,8 +1,9 @@
 // src/main.js — Bootstrap: scene, renderer, game loop
 
-import { Game }        from './core/Game.js';
-import { HomePage }    from './ui/HomePage.js';
-import { SaveManager } from './core/SaveManager.js';
+import { Game }          from './core/Game.js';
+import { HomePage }      from './ui/HomePage.js';
+import { SaveManager }   from './core/SaveManager.js';
+import { LoadingScreen } from './ui/LoadingScreen.js';
 
 async function bootstrap() {
   const app = document.getElementById('app');
@@ -19,9 +20,11 @@ async function bootstrap() {
   const canvas = document.createElement('canvas');
   app.appendChild(canvas);
 
-  // Boot the game engine (doesn't start a session yet)
+  // Boot the game engine — show progress bar while assets load
+  const loading = new LoadingScreen();
   const game = window._game = new Game(canvas);
-  await game.init();
+  await game.init((loaded, total) => loading.onProgress(loaded, total));
+  loading.destroy();
 
   // Apply saved theme on boot
   const savedTheme = SaveManager.getTheme();
@@ -33,6 +36,7 @@ async function bootstrap() {
 
   function showHomePage() {
     homepage?.destroy();
+    game.playHomeMusic();
     homepage = new HomePage((playerName) => {
       homepage = null;
       game.startFromMenu(playerName);

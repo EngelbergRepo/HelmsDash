@@ -368,7 +368,7 @@ const _glbCache    = new Map();             // path → THREE.Group (meshes)
 const _clipCache   = new Map();             // clipName → THREE.AnimationClip
 const _overrides   = {};
 
-export async function initAssetRegistry() {
+export async function initAssetRegistry(onProgress) {
   console.log('[AssetRegistry] init start');
 
   const overrides = await loadFromFile('assets/data/asset_overrides.json');
@@ -379,23 +379,29 @@ export async function initAssetRegistry() {
 
   // ── Pre-load mesh GLBs ───────────────────────────────────────
   const meshEntries = Object.entries(REGISTRY);
+  const animEntries = Object.entries(ANIMATION_REGISTRY);
+  const total = meshEntries.length + animEntries.length;
+  let loaded = 0;
+  const tick = () => { onProgress?.(++loaded, total); };
+
   console.log(`[AssetRegistry] queuing ${meshEntries.length} mesh loads`);
 
   const meshLoads = meshEntries.map(([key, entry]) => {
     const path = _overrides[key] || entry.glbPath;
     if (!path) {
       console.log(`[AssetRegistry] skip ${key} — no glbPath`);
-      return Promise.resolve();
+      tick(); return Promise.resolve();
     }
     if (_glbCache.has(path)) {
       console.log(`[AssetRegistry] skip ${key} — already cached`);
-      return Promise.resolve();
+      tick(); return Promise.resolve();
     }
     const url = '/' + path;
     console.log(`[AssetRegistry] loading mesh ${key} from ${url}`);
     return new Promise(resolve => {
       _gltfLoader.load(url,
         gltf => {
+          tick();
           _glbCache.set(path, gltf.scene);
           // Apply world-bend shader to all materials in this GLB
           gltf.scene.traverse(child => {
@@ -433,6 +439,7 @@ export async function initAssetRegistry() {
         },
         undefined,
         (err) => {
+          tick();
           console.warn(`[AssetRegistry] ✗ mesh  ${path} — not found (placeholder used)`, err?.message ?? err);
           resolve();
         }
@@ -443,19 +450,19 @@ export async function initAssetRegistry() {
   // ── Pre-load animation GLBs (one clip per file) ──────────────
   // Skip any whose path is already loaded as a mesh (e.g. knight_run.glb serves double duty).
   // For those, the mesh load above already cached the clip.
-  const animEntries = Object.entries(ANIMATION_REGISTRY);
   console.log(`[AssetRegistry] queuing ${animEntries.length} anim loads:`, animEntries.map(([k]) => k));
 
   const animLoads = animEntries.map(([clipName, path]) => {
     if (_clipCache.has(clipName)) {
       console.log(`[AssetRegistry] skip anim "${clipName}" — already cached (shared with mesh load)`);
-      return Promise.resolve();
+      tick(); return Promise.resolve();
     }
     const url = '/' + path;
     console.log(`[AssetRegistry] loading anim "${clipName}" from ${url}`);
     return new Promise(resolve => {
       _gltfLoader.load(url,
         gltf => {
+          tick();
           console.log(`[AssetRegistry] anim GLB loaded for "${clipName}": ${gltf.animations.length} clip(s) found`);
           if (gltf.animations.length > 0) {
             gltf.animations.forEach((c, i) =>
@@ -472,6 +479,7 @@ export async function initAssetRegistry() {
         },
         undefined,
         (err) => {
+          tick();
           console.warn(`[AssetRegistry] ✗ anim  "${clipName}" (${url}) — load failed:`, err?.message ?? err);
           resolve();
         }

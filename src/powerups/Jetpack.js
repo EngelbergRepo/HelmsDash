@@ -52,6 +52,7 @@ export class Jetpack extends Collectible {
       onActivate: (player, game) => {
         player.activateJetpack();
         game?.sceneManager?.setJetpackAltitude(true, 2.8);
+        game?.audioManager?.playGaplessLoop('jetpack_sfx', '/assets/music/steps/jetpack.mp3', { volume: CONFIG.JETPACK_SFX_VOLUME });
 
         if (game?.sceneManager?.scene) {
           const scene  = game.sceneManager.scene;
@@ -72,6 +73,7 @@ export class Jetpack extends Collectible {
       onExpire: (player, game) => {
         player.deactivateJetpack();
         game?.sceneManager?.setJetpackAltitude(false, 2.8);
+        game?.audioManager?.stopLoop('jetpack_sfx', 400);
         if (_coinGroup && game?.sceneManager?.scene) {
           game.sceneManager.scene.remove(_coinGroup);
           _coinGroup = null;
