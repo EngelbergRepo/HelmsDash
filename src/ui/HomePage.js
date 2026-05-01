@@ -23,7 +23,7 @@ export class HomePage {
 
     el.innerHTML = `
       <div class="hp-card">
-        <div class="hp-logo">HelmsDash</div>
+        <img src="/assets/banner/banner.png" class="hp-banner" alt="HelmsDash" />
         <div class="hp-tagline">A Medieval Endless Run</div>
 
         ${highScore > 0 ? `<div class="hp-highscore">Best Run: <span>⭐ ${highScore.toLocaleString()}</span></div>` : ''}

@@ -280,21 +280,26 @@
   background: linear-gradient(170deg, #2e1a07 0%, #160b02 100%);
   border: 2px solid rgba(245,200,66,0.35);
   border-radius: 20px;
-  padding: 48px 52px 40px;
+  padding: 0 52px 40px;
   text-align: center;
   box-shadow: 0 32px 100px rgba(0,0,0,0.9);
   max-width: 440px;
   width: 92%;
+  overflow: hidden;
   animation: slideUp 0.4s cubic-bezier(.2,1.5,.5,1) both;
 }
 
-.hp-logo {
-  font-family: var(--font-deco);
-  font-size: 2.8rem;
-  color: var(--gold);
-  text-shadow: 0 0 30px rgba(245,200,66,0.6), 0 4px 20px rgba(0,0,0,0.9);
-  margin-bottom: 4px;
-  letter-spacing: 0.04em;
+.hp-banner {
+  display: block;
+  width: calc(100% + 104px);
+  margin-left: -52px;
+  margin-right: -52px;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  object-position: center top;
+  border-radius: 18px 18px 0 0;
+  margin-bottom: 16px;
+  max-height: 260px;
 }
 
 .hp-tagline {
